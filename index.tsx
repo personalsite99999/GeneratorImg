@@ -89,7 +89,8 @@ const JohanLogo: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const App: React.FC = () => {
-  const [prompt, setPrompt] = useState('');
+  // Set default prompt text as requested
+  const [prompt, setPrompt] = useState('menampilkan artis korea liminho binaragawan dengan otot yang sixpack dan sedang mengikuti kompetisi diatas panggung.');
   const [references, setReferences] = useState<{file: File, preview: string, base64: string}[]>([]);
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [isGenerating, setIsGenerating] = useState(false);
