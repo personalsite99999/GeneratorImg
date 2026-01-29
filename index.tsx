@@ -19,7 +19,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 
-// API KEY UPDATED FOR TESTING
+// API KEY UPDATED (TESTING MODE)
 const API_KEY_HARDCODED = "AIzaSyDwcwTrg31dYwg2msix5KVE3NQeyWHishw";
 
 const AspectRatios = [
@@ -30,11 +30,10 @@ const AspectRatios = [
 ];
 
 const LoadingMessages = [
-  "Initializing Johan Pro Engine...",
-  "Analyzing Style References...",
-  "Injecting Neural Prompts...",
-  "Synthesizing Pixels...",
-  "Finalizing Masterwork..."
+  "JOHAN Engine: Booting neurons...",
+  "JOHAN Engine: Analyzing style...",
+  "JOHAN Engine: Mapping textures...",
+  "JOHAN Engine: Finalizing pixels..."
 ];
 
 const JohanLogo: React.FC<{ className?: string }> = ({ className }) => (
@@ -58,9 +57,6 @@ const JohanLogo: React.FC<{ className?: string }> = ({ className }) => (
     </g>
     <g className="origin-center animate-[spin_15s_linear_infinite_reverse]">
       <circle cx="250" cy="250" r="210" fill="none" stroke="#39ff14" strokeWidth="1" strokeDasharray="10 20" opacity="0.2" />
-    </g>
-    <g className="origin-center animate-[spin_20s_linear_infinite]">
-       <circle cx="250" cy="250" r="190" fill="none" stroke="url(#cyberGrad)" strokeWidth="4" strokeDasharray="2 10" opacity="0.5" />
     </g>
 
     <path id="phonePath" d="M 100, 250 a 150,150 0 1,1 300,0 a 150,150 0 1,1 -300,0" fill="none" />
@@ -117,46 +113,38 @@ const App: React.FC = () => {
     setReferences(prev => [...prev, ...newRefs].slice(0, 5));
   };
 
-  const removeReference = (index: number) => {
-    setReferences(prev => prev.filter((_, i) => i !== index));
-  };
-
   const generateImage = async () => {
-    if (!prompt.trim() && references.length === 0) {
-      setError("Please provide an idea or a reference image.");
-      return;
-    }
-
+    if (!prompt.trim() && references.length === 0) return;
     setIsGenerating(true);
     setError(null);
 
     try {
       const ai = new GoogleGenAI({ apiKey: API_KEY_HARDCODED });
-      let finalStyleContext = "";
+      let styleText = "";
 
-      // Step 1: Style Analysis using Gemini 3 Flash
+      // Step 1: Analisis Gambar (Gemini 3 Flash)
       if (references.length > 0) {
         try {
-          const parts: any[] = references.map(ref => ({
-            inlineData: { mimeType: ref.file.type, data: ref.base64 }
-          }));
-          parts.push({ text: "Describe the technical artistic style of these images for an AI prompt. Focus on lighting, texture, and medium." });
-
           const analysisResponse = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: { parts }
+            contents: { 
+              parts: [
+                ...references.map(ref => ({ inlineData: { mimeType: ref.file.type, data: ref.base64 } })),
+                { text: "Berikan deskripsi gaya artistik singkat gambar ini untuk prompt AI." }
+              ] 
+            }
           });
-          finalStyleContext = analysisResponse.text || "";
+          styleText = analysisResponse.text || "";
         } catch (e) {
-          console.warn("Style analysis failed, continuing with direct prompt.", e);
+          console.warn("Analysis failed, skipping style context.");
         }
       }
 
-      // Step 2: Image Generation using Gemini 2.5 Flash Image
+      // Step 2: Render Gambar (Gemini 2.5 Flash Image)
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: { 
-          parts: [{ text: `${prompt}. ${finalStyleContext ? `Technical style context: ${finalStyleContext}.` : ''} Cinematic, high detail, masterpiece.` }] 
+          parts: [{ text: `${prompt}. ${styleText}. Cinematic, masterwork, highly detailed.` }] 
         },
         config: {
           imageConfig: { aspectRatio: aspectRatio as any }
@@ -168,12 +156,12 @@ const App: React.FC = () => {
       if (imagePart?.inlineData?.data) {
         setResultImage(`data:image/png;base64,${imagePart.inlineData.data}`);
       } else {
-        throw new Error("No image data returned from API. Please try a different prompt.");
+        throw new Error("No image data returned from Engine.");
       }
 
     } catch (err: any) {
-      console.error("Engine Error:", err);
-      setError(err.message || "An unexpected error occurred during the render process.");
+      console.error("Critical Error:", err);
+      setError(err.message || "An error occurred during rendering.");
     } finally {
       setIsGenerating(false);
     }
@@ -182,35 +170,30 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col lg:flex-row min-h-screen w-full text-[#e4e4e7] bg-transparent">
       {/* SIDEBAR */}
-      <aside className="w-full lg:w-[380px] border-b lg:border-r lg:border-b-0 border-white/10 bg-black/80 backdrop-blur-3xl flex flex-col shrink-0 z-20">
-        <div className="p-6 lg:p-8 border-b border-white/10">
-          <div className="flex flex-col items-center gap-2">
-            <JohanLogo className="w-32 h-32 lg:w-48 lg:h-48 drop-shadow-[0_0_25px_rgba(0,243,255,0.4)]" />
-            <div className="flex items-center gap-2 px-3 py-1 bg-lime-400/10 border border-lime-400/20 rounded-full">
-               <Phone className="w-3 h-3 text-lime-400" />
-               <span className="text-[10px] font-black text-lime-400 tracking-wider">+62-813-41-300-100</span>
-            </div>
+      <aside className="w-full lg:w-[380px] border-b lg:border-r border-white/10 bg-black/80 backdrop-blur-3xl flex flex-col shrink-0">
+        <div className="p-8 border-b border-white/10 flex flex-col items-center gap-4">
+          <JohanLogo className="w-40 h-40 drop-shadow-[0_0_20px_rgba(0,243,255,0.3)]" />
+          <div className="flex items-center gap-2 px-3 py-1 bg-lime-400/10 border border-lime-400/20 rounded-full">
+            <Phone className="w-3 h-3 text-lime-400" />
+            <span className="text-[10px] font-black text-lime-400">+62-813-41-300-100</span>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
           <section className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Moodboard Staging</h3>
-              <span className="text-[9px] text-zinc-500 uppercase">{references.length}/5</span>
-            </div>
-            <div className="grid grid-cols-5 lg:grid-cols-4 gap-2">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Moodboard</h3>
+            <div className="grid grid-cols-4 gap-2">
               {references.map((ref, idx) => (
-                <div key={idx} className="relative aspect-square rounded-lg border border-white/10 overflow-hidden group">
+                <div key={idx} className="relative aspect-square rounded-lg border border-white/10 overflow-hidden">
                   <img src={ref.preview} className="w-full h-full object-cover" />
-                  <button onClick={() => removeReference(idx)} className="absolute inset-0 bg-red-500/80 opacity-0 hover:opacity-100 flex items-center justify-center transition-all">
+                  <button onClick={() => setReferences(p => p.filter((_, i) => i !== idx))} className="absolute inset-0 bg-red-500/80 opacity-0 hover:opacity-100 flex items-center justify-center">
                     <X className="w-4 h-4 text-white" />
                   </button>
                 </div>
               ))}
               {references.length < 5 && (
-                <button onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-lg border border-dashed border-white/20 hover:border-cyan-400/50 hover:bg-cyan-400/5 flex items-center justify-center transition-all group">
-                  <Plus className="w-5 h-5 text-zinc-600 group-hover:text-cyan-400" />
+                <button onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-lg border border-dashed border-white/20 hover:border-cyan-400 flex items-center justify-center transition-all">
+                  <Plus className="w-5 h-5 text-zinc-600" />
                 </button>
               )}
             </div>
@@ -218,20 +201,18 @@ const App: React.FC = () => {
           </section>
 
           <section className="space-y-4">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Resolution Frame</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Aspect Frame</h3>
             <div className="grid grid-cols-2 gap-2">
               {AspectRatios.map(Ratio => (
                 <button
                   key={Ratio.id}
                   onClick={() => setAspectRatio(Ratio.id)}
                   className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                    aspectRatio === Ratio.id ? 'border-cyan-400 bg-cyan-400/10 text-cyan-400 shadow-[0_0_15px_rgba(0,243,255,0.2)]' : 'border-white/5 bg-white/5 text-zinc-500 hover:border-white/20'
+                    aspectRatio === Ratio.id ? 'border-cyan-400 bg-cyan-400/10 text-cyan-400' : 'border-white/5 bg-white/5 text-zinc-500'
                   }`}
                 >
                   <Ratio.icon className="w-4 h-4 shrink-0" />
-                  <div className="flex flex-col items-start overflow-hidden">
-                    <span className="text-[10px] font-bold">{Ratio.label}</span>
-                  </div>
+                  <span className="text-[10px] font-bold">{Ratio.label}</span>
                 </button>
               ))}
             </div>
@@ -247,13 +228,11 @@ const App: React.FC = () => {
           </section>
         </div>
 
-        <div className="p-6 bg-black/40 border-t border-white/10 lg:sticky lg:bottom-0">
+        <div className="p-6 bg-black/40 border-t border-white/10">
           <button 
             onClick={generateImage}
             disabled={isGenerating || !prompt.trim()}
-            className={`w-full py-4 rounded-xl flex items-center justify-center gap-3 font-black text-xs tracking-widest transition-all ${
-              isGenerating || !prompt.trim() ? 'bg-zinc-900 text-zinc-700 cursor-not-allowed' : 'btn-johan'
-            }`}
+            className="w-full py-4 rounded-xl flex items-center justify-center gap-3 font-black text-xs tracking-widest btn-johan disabled:opacity-30 disabled:cursor-not-allowed"
           >
             {isGenerating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
             {isGenerating ? "PROCESSING..." : "EXECUTE RENDER"}
@@ -263,63 +242,48 @@ const App: React.FC = () => {
 
       {/* MAIN CANVAS */}
       <main ref={resultSectionRef} className="flex-1 flex flex-col relative bg-black/10 backdrop-blur-sm">
-        <header className="h-20 px-6 lg:px-10 flex justify-between items-center border-b border-white/5 bg-black/20 backdrop-blur-md z-10">
+        <header className="h-20 px-10 flex justify-between items-center border-b border-white/5 bg-black/20 backdrop-blur-md z-10">
           <div className="flex flex-col">
-            <h2 className="text-[10px] font-black text-cyan-400 tracking-[0.5em] uppercase">Johan Nanobanana Engine</h2>
-            <p className="text-[8px] text-zinc-500 font-mono">CORE: GEMINI_2.5_FLASH_IMAGE // STATUS: READY</p>
-          </div>
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-cyan-400/10 border border-cyan-400/20 rounded-md text-[8px] font-black text-cyan-400 uppercase tracking-widest">
-            LIVE_RENDER_ACTIVE
+            <h2 className="text-[10px] font-black text-cyan-400 tracking-[0.4em] uppercase">Johan Nanobanana Station</h2>
+            <p className="text-[8px] text-zinc-500 font-mono">CORE_GRID: ACTIVE // VERCEL_TEST_ENV</p>
           </div>
         </header>
 
         <div className="flex-1 relative flex items-center justify-center p-6 lg:p-12 overflow-y-auto">
           {isGenerating ? (
-            <div className="flex flex-col items-center gap-8 z-10 text-center">
-               <div className="relative w-24 h-24 lg:w-32 lg:h-32">
-                  <div className="absolute inset-0 rounded-full border-2 border-cyan-400 animate-[spin_3s_linear_infinite] border-t-transparent shadow-[0_0_20px_rgba(0,243,255,0.4)]"></div>
-                  <BrainCircuit className="absolute inset-0 m-auto w-10 h-10 lg:w-12 lg:h-12 text-cyan-400 animate-pulse" />
-               </div>
-               <div className="space-y-1">
-                 <h2 className="text-sm lg:text-base font-black text-white uppercase tracking-[0.4em] flicker">{loadingMsg}</h2>
-                 <p className="text-[8px] text-cyan-400/60 font-mono animate-pulse uppercase">Connecting to neural grid...</p>
-               </div>
+            <div className="flex flex-col items-center gap-6 text-center animate-pulse">
+               <BrainCircuit className="w-16 h-16 text-cyan-400" />
+               <h2 className="text-sm font-black text-white uppercase tracking-[0.4em] flicker">{loadingMsg}</h2>
             </div>
           ) : resultImage ? (
             <div className="relative group animate-in zoom-in duration-500 flex flex-col items-center max-w-4xl w-full">
                <div className="relative p-1 bg-gradient-to-br from-cyan-400 to-magenta-500 rounded-3xl overflow-hidden shadow-2xl">
                  <img src={resultImage} className="rounded-[1.4rem] max-h-[70vh] w-full object-contain" />
                </div>
-               <button onClick={() => {const a=document.createElement('a');a.href=resultImage;a.download=`render-${Date.now()}.png`;a.click();}} className="mt-8 flex items-center gap-4 px-10 py-4 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl">
-                  <Download className="w-5 h-5" /> EXPORT FINAL
+               <button onClick={() => {const a=document.createElement('a');a.href=resultImage;a.download=`render-${Date.now()}.png`;a.click();}} className="mt-8 flex items-center gap-4 px-10 py-4 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all">
+                  <Download className="w-5 h-5" /> DOWNLOAD RENDER
                </button>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-6 text-center max-w-sm opacity-40">
-              <ImageIcon className="w-16 h-16 text-zinc-800" />
-              <div className="space-y-2">
-                <h2 className="text-xl font-black text-white uppercase tracking-[0.5em]">Mainframe Standby</h2>
-                <p className="text-[9px] text-zinc-600 font-mono tracking-widest uppercase">Awaiting instruction sequence...</p>
-              </div>
+            <div className="flex flex-col items-center gap-6 text-center opacity-40">
+              <ImageIcon className="w-16 h-16" />
+              <p className="text-[10px] font-mono tracking-widest uppercase">Mainframe Awaiting Sequence...</p>
               
               {error && (
-                <div className="w-full p-4 bg-red-500/5 border border-red-500/20 rounded-xl text-red-400 text-left animate-in fade-in">
+                <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-left max-w-md overflow-hidden">
                   <div className="flex items-center gap-2 font-black text-[10px] uppercase mb-1">
-                    <AlertTriangle className="w-4 h-4" /> ENGINE_FAULT
+                    <AlertTriangle className="w-4 h-4 shrink-0" /> ENGINE_FAULT
                   </div>
-                  <p className="text-[9px] leading-tight font-mono opacity-80">{error}</p>
+                  <pre className="text-[8px] leading-tight font-mono whitespace-pre-wrap">{error}</pre>
                 </div>
               )}
             </div>
           )}
         </div>
         
-        <footer className="h-10 px-10 border-t border-white/5 bg-black/40 backdrop-blur-xl flex items-center justify-between z-10 shrink-0">
-          <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">Johan Studio // V.2.1-Testing</span>
-          <div className="flex items-center gap-4">
-             <span className="text-[8px] font-black text-lime-400 uppercase tracking-widest animate-pulse">API_ACTIVE</span>
-             <span className="text-[8px] font-black text-zinc-700 uppercase tracking-[0.3em]">&copy; 2024</span>
-          </div>
+        <footer className="h-10 px-10 border-t border-white/5 bg-black/40 backdrop-blur-xl flex items-center justify-between text-[8px] font-black text-zinc-700 tracking-widest">
+          <span>JOHAN_STUDIO // BUILD_2.5_STABLE</span>
+          <span>&copy; 2024 CYBERNETICS</span>
         </footer>
       </main>
     </div>
