@@ -13,19 +13,12 @@ import {
   Download, 
   Image as ImageIcon, 
   AlertTriangle, 
-  Key,
   BrainCircuit,
   Phone,
   ChevronDown
 } from 'lucide-react';
 
-// Global declarations for AI Studio environment
-declare const process: {
-  env: {
-    API_KEY: string;
-    [key: string]: string;
-  };
-};
+const API_KEY_HARDCODED = "AIzaSyBF7DBAJIRp8aoaFXCJmxT5lJMdzCK5a6Q";
 
 const AspectRatios = [
   { id: '1:1', label: '1:1', sub: 'Kotak', icon: Square },
@@ -89,7 +82,6 @@ const JohanLogo: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const App: React.FC = () => {
-  // Set default prompt text as requested
   const [prompt, setPrompt] = useState('menampilkan artis korea liminho binaragawan dengan otot yang sixpack dan sedang mengikuti kompetisi diatas panggung.');
   const [references, setReferences] = useState<{file: File, preview: string, base64: string}[]>([]);
   const [aspectRatio, setAspectRatio] = useState('1:1');
@@ -113,7 +105,6 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [isGenerating]);
 
-  // Auto-scroll logic for mobile
   useEffect(() => {
     if ((isGenerating || resultImage) && window.innerWidth < 1024) {
       resultSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -149,7 +140,7 @@ const App: React.FC = () => {
     setError(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: API_KEY_HARDCODED });
       let finalStyleContext = "";
 
       if (references.length > 0) {
@@ -191,18 +182,9 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUpdateKey = async () => {
-    try {
-      await (window as any).aistudio.openSelectKey();
-      setError(null);
-    } catch (e) {
-      alert("Gunakan browser yang mendukung AI Studio.");
-    }
-  };
-
   return (
     <div className="flex flex-col lg:flex-row min-h-screen w-full text-[#e4e4e7] bg-transparent">
-      {/* SIDEBAR / CONTROLS (Atas di Mobile, Kiri di Desktop) */}
+      {/* SIDEBAR / CONTROLS */}
       <aside className="w-full lg:w-[380px] border-b lg:border-r lg:border-b-0 border-white/10 bg-black/80 backdrop-blur-3xl flex flex-col shrink-0 z-20">
         <div className="p-6 lg:p-8 border-b border-white/10 relative">
           <div className="flex flex-col items-center gap-2">
@@ -292,16 +274,16 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      {/* MAIN CANVAS / RESULT (Bawah di Mobile, Kanan di Desktop) */}
+      {/* MAIN CANVAS / RESULT */}
       <main ref={resultSectionRef} className="flex-1 flex flex-col relative overflow-hidden min-h-screen lg:min-h-0 bg-black/10 backdrop-blur-sm">
         <header className="h-20 px-6 lg:px-10 flex justify-between items-center border-b border-white/5 bg-black/20 backdrop-blur-md z-10">
           <div className="flex flex-col">
             <h2 className="text-[10px] font-black text-cyan-400 tracking-[0.5em] uppercase">Johan Nanobanana</h2>
             <p className="text-[8px] text-zinc-500 font-mono">STATION: FLASH_CORE_V2 // LOCATION: SURABAYA_ID</p>
           </div>
-          <button onClick={handleUpdateKey} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-[9px] font-black uppercase transition-all tracking-widest">
-             <Key className="w-3 h-3 text-cyan-400" /> ACCESS
-          </button>
+          <div className="flex items-center gap-2 px-3 py-1 bg-cyan-400/10 border border-cyan-400/20 rounded-md text-[8px] font-black text-cyan-400 uppercase tracking-widest">
+            ENGINE_ACTIVE
+          </div>
         </header>
 
         <div className="flex-1 relative flex items-center justify-center p-6 lg:p-12 overflow-y-auto">
