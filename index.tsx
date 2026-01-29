@@ -15,10 +15,12 @@ import {
   AlertTriangle, 
   BrainCircuit,
   Phone,
-  ChevronDown
+  ChevronDown,
+  RefreshCw
 } from 'lucide-react';
 
-const API_KEY_HARDCODED = "AIzaSyBF7DBAJIRp8aoaFXCJmxT5lJMdzCK5a6Q";
+// API KEY UPDATED FOR TESTING
+const API_KEY_HARDCODED = "AIzaSyDwcwTrg31dYwg2msix5KVE3NQeyWHishw";
 
 const AspectRatios = [
   { id: '1:1', label: '1:1', sub: 'Kotak', icon: Square },
@@ -28,12 +30,11 @@ const AspectRatios = [
 ];
 
 const LoadingMessages = [
-  "Lagi ngerakit pixel gratisan...",
-  "Analisis gaya lewat Gemini Flash...",
-  "Nge-render Nanobanana Engine...",
-  "Dikit lagi jadi, sabar bos...",
-  "Poles cahaya dikit lagi...",
-  "Karya JOHAN hampir siap..."
+  "Initializing Johan Pro Engine...",
+  "Analyzing Style References...",
+  "Injecting Neural Prompts...",
+  "Synthesizing Pixels...",
+  "Finalizing Masterwork..."
 ];
 
 const JohanLogo: React.FC<{ className?: string }> = ({ className }) => (
@@ -74,10 +75,6 @@ const JohanLogo: React.FC<{ className?: string }> = ({ className }) => (
       <rect x="150" y="275" width="200" height="2" fill="#ff00ff" className="animate-pulse" />
       <text x="50%" y="305" textAnchor="middle" fill="#ffffff" style={{ fontSize: '14px', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '8px', opacity: 0.8 }}>PROGRAMMER FREELANCER</text>
     </g>
-    
-    <rect x="50" y="0" width="400" height="1" fill="#00f3ff" opacity="0.5">
-      <animate attributeName="y" from="150" to="350" dur="3s" repeatCount="indefinite" />
-    </rect>
   </svg>
 );
 
@@ -105,12 +102,6 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [isGenerating]);
 
-  useEffect(() => {
-    if ((isGenerating || resultImage) && window.innerWidth < 1024) {
-      resultSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [isGenerating, resultImage]);
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const files = Array.from(e.target.files) as File[];
@@ -132,7 +123,7 @@ const App: React.FC = () => {
 
   const generateImage = async () => {
     if (!prompt.trim() && references.length === 0) {
-      setError("Isi dulu deskripsi ide lu bos!");
+      setError("Please provide an idea or a reference image.");
       return;
     }
 
@@ -143,24 +134,30 @@ const App: React.FC = () => {
       const ai = new GoogleGenAI({ apiKey: API_KEY_HARDCODED });
       let finalStyleContext = "";
 
+      // Step 1: Style Analysis using Gemini 3 Flash
       if (references.length > 0) {
-        const parts: any[] = references.map(ref => ({
-          inlineData: { mimeType: ref.file.type, data: ref.base64 }
-        }));
-        parts.push({ text: "Analisis gaya artistik gambar ini secara teknis untuk prompt AI. Berikan deskripsi gaya singkat." });
+        try {
+          const parts: any[] = references.map(ref => ({
+            inlineData: { mimeType: ref.file.type, data: ref.base64 }
+          }));
+          parts.push({ text: "Describe the technical artistic style of these images for an AI prompt. Focus on lighting, texture, and medium." });
 
-        const analysisResponse = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
-          contents: { parts }
-        });
-        finalStyleContext = analysisResponse.text || "";
+          const analysisResponse = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: { parts }
+          });
+          finalStyleContext = analysisResponse.text || "";
+        } catch (e) {
+          console.warn("Style analysis failed, continuing with direct prompt.", e);
+        }
       }
 
-      const genParts = [{ text: `${prompt}. Style: ${finalStyleContext}. High quality render.` }];
-
+      // Step 2: Image Generation using Gemini 2.5 Flash Image
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
-        contents: { parts: genParts },
+        contents: { 
+          parts: [{ text: `${prompt}. ${finalStyleContext ? `Technical style context: ${finalStyleContext}.` : ''} Cinematic, high detail, masterpiece.` }] 
+        },
         config: {
           imageConfig: { aspectRatio: aspectRatio as any }
         }
@@ -171,12 +168,12 @@ const App: React.FC = () => {
       if (imagePart?.inlineData?.data) {
         setResultImage(`data:image/png;base64,${imagePart.inlineData.data}`);
       } else {
-        throw new Error("Respon kosong. Cek API Key lu bos.");
+        throw new Error("No image data returned from API. Please try a different prompt.");
       }
 
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Gagal render gambar.");
+      console.error("Engine Error:", err);
+      setError(err.message || "An unexpected error occurred during the render process.");
     } finally {
       setIsGenerating(false);
     }
@@ -184,28 +181,28 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen w-full text-[#e4e4e7] bg-transparent">
-      {/* SIDEBAR / CONTROLS */}
+      {/* SIDEBAR */}
       <aside className="w-full lg:w-[380px] border-b lg:border-r lg:border-b-0 border-white/10 bg-black/80 backdrop-blur-3xl flex flex-col shrink-0 z-20">
-        <div className="p-6 lg:p-8 border-b border-white/10 relative">
+        <div className="p-6 lg:p-8 border-b border-white/10">
           <div className="flex flex-col items-center gap-2">
             <JohanLogo className="w-32 h-32 lg:w-48 lg:h-48 drop-shadow-[0_0_25px_rgba(0,243,255,0.4)]" />
             <div className="flex items-center gap-2 px-3 py-1 bg-lime-400/10 border border-lime-400/20 rounded-full">
                <Phone className="w-3 h-3 text-lime-400" />
-               <span className="text-[9px] lg:text-[10px] font-black text-lime-400 tracking-wider">+62-813-41-300-100</span>
+               <span className="text-[10px] font-black text-lime-400 tracking-wider">+62-813-41-300-100</span>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-visible lg:overflow-y-auto p-6 space-y-8">
+        <div className="flex-1 overflow-y-auto p-6 space-y-8">
           <section className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Moodboard</h3>
-              <span className="text-[9px] text-zinc-500 uppercase">{references.length}/5 Images</span>
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Moodboard Staging</h3>
+              <span className="text-[9px] text-zinc-500 uppercase">{references.length}/5</span>
             </div>
             <div className="grid grid-cols-5 lg:grid-cols-4 gap-2">
               {references.map((ref, idx) => (
                 <div key={idx} className="relative aspect-square rounded-lg border border-white/10 overflow-hidden group">
-                  <img src={ref.preview} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
+                  <img src={ref.preview} className="w-full h-full object-cover" />
                   <button onClick={() => removeReference(idx)} className="absolute inset-0 bg-red-500/80 opacity-0 hover:opacity-100 flex items-center justify-center transition-all">
                     <X className="w-4 h-4 text-white" />
                   </button>
@@ -221,8 +218,8 @@ const App: React.FC = () => {
           </section>
 
           <section className="space-y-4">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Resolution Aspect</h3>
-            <div className="grid grid-cols-2 lg:grid-cols-2 gap-2">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Resolution Frame</h3>
+            <div className="grid grid-cols-2 gap-2">
               {AspectRatios.map(Ratio => (
                 <button
                   key={Ratio.id}
@@ -234,7 +231,6 @@ const App: React.FC = () => {
                   <Ratio.icon className="w-4 h-4 shrink-0" />
                   <div className="flex flex-col items-start overflow-hidden">
                     <span className="text-[10px] font-bold">{Ratio.label}</span>
-                    <span className="text-[7px] opacity-50 uppercase tracking-tighter truncate">{Ratio.sub}</span>
                   </div>
                 </button>
               ))}
@@ -242,12 +238,11 @@ const App: React.FC = () => {
           </section>
 
           <section className="space-y-4">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Prompt Engineering</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Prompt Core</h3>
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe your visual concept..."
-              className="w-full h-32 bg-black/40 border border-white/10 rounded-xl p-4 text-xs focus:border-cyan-400 outline-none resize-none text-white font-medium transition-all"
+              className="w-full h-32 bg-black/40 border border-white/10 rounded-xl p-4 text-xs focus:border-cyan-400 outline-none resize-none text-white font-medium"
             />
           </section>
         </div>
@@ -257,91 +252,74 @@ const App: React.FC = () => {
             onClick={generateImage}
             disabled={isGenerating || !prompt.trim()}
             className={`w-full py-4 rounded-xl flex items-center justify-center gap-3 font-black text-xs tracking-widest transition-all ${
-              isGenerating || !prompt.trim() ? 'bg-zinc-900 text-zinc-700' : 'btn-johan'
+              isGenerating || !prompt.trim() ? 'bg-zinc-900 text-zinc-700 cursor-not-allowed' : 'btn-johan'
             }`}
           >
-            {isGenerating ? (
-              <>
-                <Zap className="w-4 h-4 animate-bounce text-lime-400" />
-                PROCESSING...
-              </>
-            ) : "EXECUTE RENDER"}
+            {isGenerating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+            {isGenerating ? "PROCESSING..." : "EXECUTE RENDER"}
           </button>
-          
-          <div className="mt-4 flex lg:hidden justify-center items-center gap-2 text-[9px] font-black text-cyan-400/40 uppercase tracking-widest">
-            Scroll down for result <ChevronDown className="w-3 h-3 animate-bounce" />
-          </div>
         </div>
       </aside>
 
-      {/* MAIN CANVAS / RESULT */}
-      <main ref={resultSectionRef} className="flex-1 flex flex-col relative overflow-hidden min-h-screen lg:min-h-0 bg-black/10 backdrop-blur-sm">
+      {/* MAIN CANVAS */}
+      <main ref={resultSectionRef} className="flex-1 flex flex-col relative bg-black/10 backdrop-blur-sm">
         <header className="h-20 px-6 lg:px-10 flex justify-between items-center border-b border-white/5 bg-black/20 backdrop-blur-md z-10">
           <div className="flex flex-col">
-            <h2 className="text-[10px] font-black text-cyan-400 tracking-[0.5em] uppercase">Johan Nanobanana</h2>
-            <p className="text-[8px] text-zinc-500 font-mono">STATION: FLASH_CORE_V2 // LOCATION: SURABAYA_ID</p>
+            <h2 className="text-[10px] font-black text-cyan-400 tracking-[0.5em] uppercase">Johan Nanobanana Engine</h2>
+            <p className="text-[8px] text-zinc-500 font-mono">CORE: GEMINI_2.5_FLASH_IMAGE // STATUS: READY</p>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1 bg-cyan-400/10 border border-cyan-400/20 rounded-md text-[8px] font-black text-cyan-400 uppercase tracking-widest">
-            ENGINE_ACTIVE
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-cyan-400/10 border border-cyan-400/20 rounded-md text-[8px] font-black text-cyan-400 uppercase tracking-widest">
+            LIVE_RENDER_ACTIVE
           </div>
         </header>
 
         <div className="flex-1 relative flex items-center justify-center p-6 lg:p-12 overflow-y-auto">
           {isGenerating ? (
-            <div className="flex flex-col items-center gap-10 z-10 text-center py-20 lg:py-0">
+            <div className="flex flex-col items-center gap-8 z-10 text-center">
                <div className="relative w-24 h-24 lg:w-32 lg:h-32">
                   <div className="absolute inset-0 rounded-full border-2 border-cyan-400 animate-[spin_3s_linear_infinite] border-t-transparent shadow-[0_0_20px_rgba(0,243,255,0.4)]"></div>
-                  <div className="absolute inset-4 rounded-full border-2 border-magenta-500 animate-[spin_5s_linear_infinite_reverse] border-b-transparent"></div>
                   <BrainCircuit className="absolute inset-0 m-auto w-10 h-10 lg:w-12 lg:h-12 text-cyan-400 animate-pulse" />
                </div>
-               <div className="space-y-2">
-                 <h2 className="text-lg lg:text-xl font-black text-white uppercase tracking-[0.4em] flicker">{loadingMsg}</h2>
-                 <p className="text-[8px] lg:text-[9px] text-cyan-400/60 font-mono animate-pulse uppercase">Syncing with neural nodes...</p>
+               <div className="space-y-1">
+                 <h2 className="text-sm lg:text-base font-black text-white uppercase tracking-[0.4em] flicker">{loadingMsg}</h2>
+                 <p className="text-[8px] text-cyan-400/60 font-mono animate-pulse uppercase">Connecting to neural grid...</p>
                </div>
             </div>
           ) : resultImage ? (
-            <div className="relative group animate-in zoom-in duration-700 flex flex-col items-center max-w-5xl w-full py-10 lg:py-0">
-               <div className="relative p-1 bg-gradient-to-br from-cyan-400 to-magenta-500 rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.8)]">
-                 <img src={resultImage} className="rounded-[1.4rem] max-h-[65vh] lg:max-h-[70vh] w-full object-contain" />
-                 <div className="absolute top-4 right-4 flex gap-2">
-                    <div className="bg-black/80 backdrop-blur-md px-3 py-1 rounded-full text-[8px] font-black text-white border border-white/10 uppercase tracking-tighter">RENDER_COMPLETE</div>
-                 </div>
+            <div className="relative group animate-in zoom-in duration-500 flex flex-col items-center max-w-4xl w-full">
+               <div className="relative p-1 bg-gradient-to-br from-cyan-400 to-magenta-500 rounded-3xl overflow-hidden shadow-2xl">
+                 <img src={resultImage} className="rounded-[1.4rem] max-h-[70vh] w-full object-contain" />
                </div>
-               
-               <button onClick={() => {const a=document.createElement('a');a.href=resultImage;a.download=`johan-${Date.now()}.png`;a.click();}} className="mt-8 lg:mt-10 flex items-center gap-4 px-10 py-4 lg:px-12 lg:py-5 bg-white text-black rounded-2xl font-black text-[10px] lg:text-xs uppercase tracking-[0.2em] hover:scale-105 hover:bg-cyan-400 transition-all shadow-xl">
-                  <Download className="w-5 h-5" /> EXPORT FINAL ASSET
+               <button onClick={() => {const a=document.createElement('a');a.href=resultImage;a.download=`render-${Date.now()}.png`;a.click();}} className="mt-8 flex items-center gap-4 px-10 py-4 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl">
+                  <Download className="w-5 h-5" /> EXPORT FINAL
                </button>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-8 text-center max-w-lg py-20 lg:py-0">
-              <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-3xl border border-white/5 bg-white/5 flex items-center justify-center relative overflow-hidden group">
-                 <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 to-transparent group-hover:from-cyan-500/20 transition-all"></div>
-                 <ImageIcon className="w-8 h-8 lg:w-10 lg:h-10 text-zinc-800 group-hover:text-zinc-600 transition-all" />
-              </div>
-              <div className="space-y-3">
-                <h2 className="text-xl lg:text-2xl font-black text-white uppercase tracking-[0.5em] opacity-40">Mainframe Standby</h2>
-                <p className="text-[9px] lg:text-[10px] text-zinc-600 font-mono tracking-widest max-w-xs mx-auto">WAITING FOR INPUT STREAM // READY TO GENERATE VISUAL NEURONS</p>
+            <div className="flex flex-col items-center gap-6 text-center max-w-sm opacity-40">
+              <ImageIcon className="w-16 h-16 text-zinc-800" />
+              <div className="space-y-2">
+                <h2 className="text-xl font-black text-white uppercase tracking-[0.5em]">Mainframe Standby</h2>
+                <p className="text-[9px] text-zinc-600 font-mono tracking-widest uppercase">Awaiting instruction sequence...</p>
               </div>
               
               {error && (
-                <div className="w-full p-6 bg-red-500/5 border border-red-500/20 rounded-2xl text-red-400 text-left animate-in slide-in-from-bottom-4">
-                  <div className="flex items-center gap-3 font-black text-[11px] uppercase tracking-wider mb-2">
-                    <AlertTriangle className="w-5 h-5" /> PROTOCOL_ERROR
+                <div className="w-full p-4 bg-red-500/5 border border-red-500/20 rounded-xl text-red-400 text-left animate-in fade-in">
+                  <div className="flex items-center gap-2 font-black text-[10px] uppercase mb-1">
+                    <AlertTriangle className="w-4 h-4" /> ENGINE_FAULT
                   </div>
-                  <p className="text-[10px] leading-relaxed opacity-80 font-mono">{error}</p>
+                  <p className="text-[9px] leading-tight font-mono opacity-80">{error}</p>
                 </div>
               )}
             </div>
           )}
         </div>
         
-        {/* FOOTER BAR */}
-        <footer className="hidden lg:flex h-10 px-10 border-t border-white/5 bg-black/40 backdrop-blur-xl items-center justify-between z-10 shrink-0">
-          <div className="flex gap-6 items-center">
-            <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">Status: <span className="text-lime-400">Online</span></span>
-            <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">Network: <span className="text-cyan-400">Flash_Grid_v2</span></span>
+        <footer className="h-10 px-10 border-t border-white/5 bg-black/40 backdrop-blur-xl flex items-center justify-between z-10 shrink-0">
+          <span className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest">Johan Studio // V.2.1-Testing</span>
+          <div className="flex items-center gap-4">
+             <span className="text-[8px] font-black text-lime-400 uppercase tracking-widest animate-pulse">API_ACTIVE</span>
+             <span className="text-[8px] font-black text-zinc-700 uppercase tracking-[0.3em]">&copy; 2024</span>
           </div>
-          <div className="text-[8px] font-black text-zinc-700 uppercase tracking-[0.3em]">Johan Cybernetics &copy; 2024</div>
         </footer>
       </main>
     </div>
