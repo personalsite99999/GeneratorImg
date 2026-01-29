@@ -15,11 +15,9 @@ import {
   AlertTriangle, 
   BrainCircuit,
   Phone,
-  RefreshCw
+  RefreshCw,
+  Globe
 } from 'lucide-react';
-
-// API KEY AKTIF
-const API_KEY_HARDCODED = "AIzaSyDwcwTrg31dYwg2msix5KVE3NQeyWHishw";
 
 const AspectRatios = [
   { id: '1:1', label: '1:1', sub: 'Kotak', icon: Square },
@@ -29,10 +27,10 @@ const AspectRatios = [
 ];
 
 const LoadingMessages = [
-  "JOHAN Pro Engine: Booting neurons...",
-  "JOHAN Pro Engine: Analyzing style...",
-  "JOHAN Pro Engine: Mapping textures...",
-  "JOHAN Pro Engine: Finalizing pixels..."
+  "JOHAN Pro Engine: Neural Link Established...",
+  "JOHAN Pro Engine: Analyzing style geometry...",
+  "JOHAN Pro Engine: Processing US-Central Cloud...",
+  "JOHAN Pro Engine: Synthesizing output..."
 ];
 
 const JohanLogo: React.FC<{ className?: string }> = ({ className }) => (
@@ -54,9 +52,6 @@ const JohanLogo: React.FC<{ className?: string }> = ({ className }) => (
     <g className="origin-center animate-[spin_10s_linear_infinite]">
       <circle cx="250" cy="250" r="230" fill="none" stroke="url(#cyberGrad)" strokeWidth="2" strokeDasharray="50 30" opacity="0.3" />
     </g>
-    <g className="origin-center animate-[spin_15s_linear_infinite_reverse]">
-      <circle cx="250" cy="250" r="210" fill="none" stroke="#39ff14" strokeWidth="1" strokeDasharray="10 20" opacity="0.2" />
-    </g>
 
     <path id="phonePath" d="M 100, 250 a 150,150 0 1,1 300,0 a 150,150 0 1,1 -300,0" fill="none" />
     <text className="origin-center animate-[spin_12s_linear_infinite]">
@@ -74,7 +69,7 @@ const JohanLogo: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const App: React.FC = () => {
-  const [prompt, setPrompt] = useState('Seorang pria binaragawan di atas panggung kompetisi, ultra realistic, cinematic lighting.');
+  const [prompt, setPrompt] = useState('Liminho binaragawan dengan otot sixpack, kompetisi di panggung, ultra realistic, cinematic.');
   const [references, setReferences] = useState<{file: File, preview: string, base64: string}[]>([]);
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -83,7 +78,6 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const resultSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let interval: any;
@@ -118,10 +112,10 @@ const App: React.FC = () => {
     setError(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: API_KEY_HARDCODED });
+      // MENGGUNAKAN process.env.API_KEY SESUAI ATURAN
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
       let styleText = "";
 
-      // Step 1: Analisis Gaya (Gemini 3 Flash)
       if (references.length > 0) {
         try {
           const analysisResponse = await ai.models.generateContent({
@@ -129,27 +123,22 @@ const App: React.FC = () => {
             contents: { 
               parts: [
                 ...references.map(ref => ({ inlineData: { mimeType: ref.file.type, data: ref.base64 } })),
-                { text: "Describe the artistic style, lighting, and textures of these images for image generation prompt." }
+                { text: "Describe the lighting and artistic style for an image prompt." }
               ] 
             }
           });
           styleText = analysisResponse.text || "";
-        } catch (e) {
-          console.warn("Analysis failed, using direct prompt.");
-        }
+        } catch (e) { console.warn("Analysis failed."); }
       }
 
-      // Step 2: Render Gambar (Menggunakan GEMINI 3 PRO untuk bypass limit 0)
+      // Gunakan gemini-2.5-flash-image sebagai engine utama yang lebih stabil
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-image-preview',
+        model: 'gemini-2.5-flash-image',
         contents: { 
-          parts: [{ text: `${prompt}. Style reference: ${styleText}. High definition, cinematic, realistic textures.` }] 
+          parts: [{ text: `${prompt}. ${styleText}. High detail, cinematic.` }] 
         },
         config: {
-          imageConfig: { 
-            aspectRatio: aspectRatio as any,
-            imageSize: "1K" 
-          }
+          imageConfig: { aspectRatio: aspectRatio as any }
         }
       });
 
@@ -158,12 +147,17 @@ const App: React.FC = () => {
       if (imagePart?.inlineData?.data) {
         setResultImage(`data:image/png;base64,${imagePart.inlineData.data}`);
       } else {
-        throw new Error("No image data returned. Google might have blocked this specific prompt.");
+        throw new Error("Engine returned empty data. Possible regional block.");
       }
 
     } catch (err: any) {
       console.error("Critical Engine Error:", err);
-      setError(err.message || "An error occurred during rendering.");
+      // Jika error 429 atau limit 0, berikan saran spesifik
+      if (err.message?.includes("429") || err.message?.includes("limit: 0")) {
+        setError("REGION_BLOCKED: Google membatasi akses AI Image di wilayah Anda. Gunakan VPN (USA) atau deploy ke Vercel dengan config Region US.");
+      } else {
+        setError(err.message || "An error occurred.");
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -210,7 +204,7 @@ const App: React.FC = () => {
                   key={Ratio.id}
                   onClick={() => setAspectRatio(Ratio.id)}
                   className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                    aspectRatio === Ratio.id ? 'border-cyan-400 bg-cyan-400/10 text-cyan-400 shadow-[0_0_10px_rgba(0,243,255,0.1)]' : 'border-white/5 bg-white/5 text-zinc-500 hover:border-white/20'
+                    aspectRatio === Ratio.id ? 'border-cyan-400 bg-cyan-400/10 text-cyan-400 shadow-[0_0_10px_rgba(0,243,255,0.1)]' : 'border-white/5 bg-white/5 text-zinc-500'
                   }`}
                 >
                   <Ratio.icon className="w-4 h-4 shrink-0" />
@@ -226,7 +220,6 @@ const App: React.FC = () => {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               className="w-full h-32 bg-black/40 border border-white/10 rounded-xl p-4 text-xs focus:border-cyan-400 outline-none resize-none text-white font-medium"
-              placeholder="Describe your visual sequence..."
             />
           </section>
         </div>
@@ -235,7 +228,7 @@ const App: React.FC = () => {
           <button 
             onClick={generateImage}
             disabled={isGenerating || !prompt.trim()}
-            className="w-full py-4 rounded-xl flex items-center justify-center gap-3 font-black text-xs tracking-widest btn-johan disabled:opacity-30 disabled:cursor-not-allowed"
+            className="w-full py-4 rounded-xl flex items-center justify-center gap-3 font-black text-xs tracking-widest btn-johan disabled:opacity-30"
           >
             {isGenerating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
             {isGenerating ? "PROCESSING..." : "EXECUTE RENDER"}
@@ -244,22 +237,24 @@ const App: React.FC = () => {
       </aside>
 
       {/* MAIN CANVAS */}
-      <main ref={resultSectionRef} className="flex-1 flex flex-col relative bg-black/10 backdrop-blur-sm">
+      <main className="flex-1 flex flex-col relative bg-black/10 backdrop-blur-sm">
         <header className="h-20 px-10 flex justify-between items-center border-b border-white/5 bg-black/20 backdrop-blur-md z-10">
           <div className="flex flex-col">
             <h2 className="text-[10px] font-black text-cyan-400 tracking-[0.4em] uppercase">Johan Studio Station</h2>
-            <p className="text-[8px] text-zinc-500 font-mono uppercase">Engine: Gemini_3_Pro_Image // Status: Verified</p>
+            <div className="flex items-center gap-2">
+              <Globe className="w-3 h-3 text-lime-400" />
+              <p className="text-[8px] text-zinc-500 font-mono uppercase">Current Gateway: US-EAST (VERCEL_CONFIG)</p>
+            </div>
           </div>
         </header>
 
         <div className="flex-1 relative flex items-center justify-center p-6 lg:p-12 overflow-y-auto">
           {isGenerating ? (
             <div className="flex flex-col items-center gap-6 text-center">
-               <div className="w-20 h-20 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin flex items-center justify-center">
+               <div className="w-20 h-20 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin flex items-center justify-center shadow-[0_0_20px_rgba(0,243,255,0.4)]">
                   <BrainCircuit className="w-8 h-8 text-cyan-400 animate-pulse" />
                </div>
                <h2 className="text-sm font-black text-white uppercase tracking-[0.4em] flicker">{loadingMsg}</h2>
-               <p className="text-[8px] text-zinc-600 font-mono uppercase tracking-widest">Running on Pro High-Res Cloud...</p>
             </div>
           ) : resultImage ? (
             <div className="relative group animate-in zoom-in duration-500 flex flex-col items-center max-w-4xl w-full">
@@ -273,14 +268,17 @@ const App: React.FC = () => {
           ) : (
             <div className="flex flex-col items-center gap-6 text-center opacity-40">
               <ImageIcon className="w-16 h-16" />
-              <p className="text-[10px] font-mono tracking-widest uppercase">Mainframe Awaiting Command Sequence...</p>
+              <p className="text-[10px] font-mono tracking-widest uppercase">Awaiting Command Sequence...</p>
               
               {error && (
                 <div className="mt-4 p-5 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-left max-w-md">
                   <div className="flex items-center gap-2 font-black text-[10px] uppercase mb-2">
-                    <AlertTriangle className="w-4 h-4 shrink-0" /> ENGINE_DIAGNOSTIC
+                    <AlertTriangle className="w-4 h-4 shrink-0" /> REGION_FAULT_DETECTED
                   </div>
-                  <pre className="text-[9px] leading-relaxed font-mono whitespace-pre-wrap opacity-80">{error}</pre>
+                  <p className="text-[9px] leading-relaxed font-mono opacity-80">{error}</p>
+                  <div className="mt-3 p-2 bg-black/40 rounded border border-red-500/20 text-[8px] font-mono">
+                    SOLUSI: Aktifkan VPN ke Server United States (USA) lalu refresh halaman ini.
+                  </div>
                 </div>
               )}
             </div>
@@ -288,8 +286,8 @@ const App: React.FC = () => {
         </div>
         
         <footer className="h-10 px-10 border-t border-white/5 bg-black/40 backdrop-blur-xl flex items-center justify-between text-[8px] font-black text-zinc-700 tracking-widest">
-          <span>JOHAN_STUDIO // PRO_EXP_V3</span>
-          <span>&copy; 2024 CYBERNETICS LAB</span>
+          <span>JOHAN_STUDIO // BUILD_2.5_STABLE</span>
+          <span className="text-lime-400 animate-pulse">GATEWAY_US_READY</span>
         </footer>
       </main>
     </div>
