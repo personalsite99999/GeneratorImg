@@ -15,11 +15,10 @@ import {
   AlertTriangle, 
   BrainCircuit,
   Phone,
-  ChevronDown,
   RefreshCw
 } from 'lucide-react';
 
-// API KEY UPDATED (TESTING MODE)
+// API KEY AKTIF
 const API_KEY_HARDCODED = "AIzaSyDwcwTrg31dYwg2msix5KVE3NQeyWHishw";
 
 const AspectRatios = [
@@ -30,10 +29,10 @@ const AspectRatios = [
 ];
 
 const LoadingMessages = [
-  "JOHAN Engine: Booting neurons...",
-  "JOHAN Engine: Analyzing style...",
-  "JOHAN Engine: Mapping textures...",
-  "JOHAN Engine: Finalizing pixels..."
+  "JOHAN Pro Engine: Booting neurons...",
+  "JOHAN Pro Engine: Analyzing style...",
+  "JOHAN Pro Engine: Mapping textures...",
+  "JOHAN Pro Engine: Finalizing pixels..."
 ];
 
 const JohanLogo: React.FC<{ className?: string }> = ({ className }) => (
@@ -75,7 +74,7 @@ const JohanLogo: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const App: React.FC = () => {
-  const [prompt, setPrompt] = useState('menampilkan artis korea liminho binaragawan dengan otot yang sixpack dan sedang mengikuti kompetisi diatas panggung.');
+  const [prompt, setPrompt] = useState('Seorang pria binaragawan di atas panggung kompetisi, ultra realistic, cinematic lighting.');
   const [references, setReferences] = useState<{file: File, preview: string, base64: string}[]>([]);
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -122,7 +121,7 @@ const App: React.FC = () => {
       const ai = new GoogleGenAI({ apiKey: API_KEY_HARDCODED });
       let styleText = "";
 
-      // Step 1: Analisis Gambar (Gemini 3 Flash)
+      // Step 1: Analisis Gaya (Gemini 3 Flash)
       if (references.length > 0) {
         try {
           const analysisResponse = await ai.models.generateContent({
@@ -130,24 +129,27 @@ const App: React.FC = () => {
             contents: { 
               parts: [
                 ...references.map(ref => ({ inlineData: { mimeType: ref.file.type, data: ref.base64 } })),
-                { text: "Berikan deskripsi gaya artistik singkat gambar ini untuk prompt AI." }
+                { text: "Describe the artistic style, lighting, and textures of these images for image generation prompt." }
               ] 
             }
           });
           styleText = analysisResponse.text || "";
         } catch (e) {
-          console.warn("Analysis failed, skipping style context.");
+          console.warn("Analysis failed, using direct prompt.");
         }
       }
 
-      // Step 2: Render Gambar (Gemini 2.5 Flash Image)
+      // Step 2: Render Gambar (Menggunakan GEMINI 3 PRO untuk bypass limit 0)
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
+        model: 'gemini-3-pro-image-preview',
         contents: { 
-          parts: [{ text: `${prompt}. ${styleText}. Cinematic, masterwork, highly detailed.` }] 
+          parts: [{ text: `${prompt}. Style reference: ${styleText}. High definition, cinematic, realistic textures.` }] 
         },
         config: {
-          imageConfig: { aspectRatio: aspectRatio as any }
+          imageConfig: { 
+            aspectRatio: aspectRatio as any,
+            imageSize: "1K" 
+          }
         }
       });
 
@@ -156,11 +158,11 @@ const App: React.FC = () => {
       if (imagePart?.inlineData?.data) {
         setResultImage(`data:image/png;base64,${imagePart.inlineData.data}`);
       } else {
-        throw new Error("No image data returned from Engine.");
+        throw new Error("No image data returned. Google might have blocked this specific prompt.");
       }
 
     } catch (err: any) {
-      console.error("Critical Error:", err);
+      console.error("Critical Engine Error:", err);
       setError(err.message || "An error occurred during rendering.");
     } finally {
       setIsGenerating(false);
@@ -181,19 +183,19 @@ const App: React.FC = () => {
 
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
           <section className="space-y-4">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Moodboard</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Moodboard Staging</h3>
             <div className="grid grid-cols-4 gap-2">
               {references.map((ref, idx) => (
                 <div key={idx} className="relative aspect-square rounded-lg border border-white/10 overflow-hidden">
-                  <img src={ref.preview} className="w-full h-full object-cover" />
+                  <img src={ref.preview} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all" />
                   <button onClick={() => setReferences(p => p.filter((_, i) => i !== idx))} className="absolute inset-0 bg-red-500/80 opacity-0 hover:opacity-100 flex items-center justify-center">
                     <X className="w-4 h-4 text-white" />
                   </button>
                 </div>
               ))}
               {references.length < 5 && (
-                <button onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-lg border border-dashed border-white/20 hover:border-cyan-400 flex items-center justify-center transition-all">
-                  <Plus className="w-5 h-5 text-zinc-600" />
+                <button onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-lg border border-dashed border-white/20 hover:border-cyan-400 flex items-center justify-center transition-all group">
+                  <Plus className="w-5 h-5 text-zinc-600 group-hover:text-cyan-400" />
                 </button>
               )}
             </div>
@@ -208,7 +210,7 @@ const App: React.FC = () => {
                   key={Ratio.id}
                   onClick={() => setAspectRatio(Ratio.id)}
                   className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                    aspectRatio === Ratio.id ? 'border-cyan-400 bg-cyan-400/10 text-cyan-400' : 'border-white/5 bg-white/5 text-zinc-500'
+                    aspectRatio === Ratio.id ? 'border-cyan-400 bg-cyan-400/10 text-cyan-400 shadow-[0_0_10px_rgba(0,243,255,0.1)]' : 'border-white/5 bg-white/5 text-zinc-500 hover:border-white/20'
                   }`}
                 >
                   <Ratio.icon className="w-4 h-4 shrink-0" />
@@ -224,6 +226,7 @@ const App: React.FC = () => {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               className="w-full h-32 bg-black/40 border border-white/10 rounded-xl p-4 text-xs focus:border-cyan-400 outline-none resize-none text-white font-medium"
+              placeholder="Describe your visual sequence..."
             />
           </section>
         </div>
@@ -244,37 +247,40 @@ const App: React.FC = () => {
       <main ref={resultSectionRef} className="flex-1 flex flex-col relative bg-black/10 backdrop-blur-sm">
         <header className="h-20 px-10 flex justify-between items-center border-b border-white/5 bg-black/20 backdrop-blur-md z-10">
           <div className="flex flex-col">
-            <h2 className="text-[10px] font-black text-cyan-400 tracking-[0.4em] uppercase">Johan Nanobanana Station</h2>
-            <p className="text-[8px] text-zinc-500 font-mono">CORE_GRID: ACTIVE // VERCEL_TEST_ENV</p>
+            <h2 className="text-[10px] font-black text-cyan-400 tracking-[0.4em] uppercase">Johan Studio Station</h2>
+            <p className="text-[8px] text-zinc-500 font-mono uppercase">Engine: Gemini_3_Pro_Image // Status: Verified</p>
           </div>
         </header>
 
         <div className="flex-1 relative flex items-center justify-center p-6 lg:p-12 overflow-y-auto">
           {isGenerating ? (
-            <div className="flex flex-col items-center gap-6 text-center animate-pulse">
-               <BrainCircuit className="w-16 h-16 text-cyan-400" />
+            <div className="flex flex-col items-center gap-6 text-center">
+               <div className="w-20 h-20 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin flex items-center justify-center">
+                  <BrainCircuit className="w-8 h-8 text-cyan-400 animate-pulse" />
+               </div>
                <h2 className="text-sm font-black text-white uppercase tracking-[0.4em] flicker">{loadingMsg}</h2>
+               <p className="text-[8px] text-zinc-600 font-mono uppercase tracking-widest">Running on Pro High-Res Cloud...</p>
             </div>
           ) : resultImage ? (
             <div className="relative group animate-in zoom-in duration-500 flex flex-col items-center max-w-4xl w-full">
                <div className="relative p-1 bg-gradient-to-br from-cyan-400 to-magenta-500 rounded-3xl overflow-hidden shadow-2xl">
                  <img src={resultImage} className="rounded-[1.4rem] max-h-[70vh] w-full object-contain" />
                </div>
-               <button onClick={() => {const a=document.createElement('a');a.href=resultImage;a.download=`render-${Date.now()}.png`;a.click();}} className="mt-8 flex items-center gap-4 px-10 py-4 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all">
+               <button onClick={() => {const a=document.createElement('a');a.href=resultImage;a.download=`render-${Date.now()}.png`;a.click();}} className="mt-8 flex items-center gap-4 px-10 py-4 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl">
                   <Download className="w-5 h-5" /> DOWNLOAD RENDER
                </button>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-6 text-center opacity-40">
               <ImageIcon className="w-16 h-16" />
-              <p className="text-[10px] font-mono tracking-widest uppercase">Mainframe Awaiting Sequence...</p>
+              <p className="text-[10px] font-mono tracking-widest uppercase">Mainframe Awaiting Command Sequence...</p>
               
               {error && (
-                <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-left max-w-md overflow-hidden">
-                  <div className="flex items-center gap-2 font-black text-[10px] uppercase mb-1">
-                    <AlertTriangle className="w-4 h-4 shrink-0" /> ENGINE_FAULT
+                <div className="mt-4 p-5 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-left max-w-md">
+                  <div className="flex items-center gap-2 font-black text-[10px] uppercase mb-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0" /> ENGINE_DIAGNOSTIC
                   </div>
-                  <pre className="text-[8px] leading-tight font-mono whitespace-pre-wrap">{error}</pre>
+                  <pre className="text-[9px] leading-relaxed font-mono whitespace-pre-wrap opacity-80">{error}</pre>
                 </div>
               )}
             </div>
@@ -282,8 +288,8 @@ const App: React.FC = () => {
         </div>
         
         <footer className="h-10 px-10 border-t border-white/5 bg-black/40 backdrop-blur-xl flex items-center justify-between text-[8px] font-black text-zinc-700 tracking-widest">
-          <span>JOHAN_STUDIO // BUILD_2.5_STABLE</span>
-          <span>&copy; 2024 CYBERNETICS</span>
+          <span>JOHAN_STUDIO // PRO_EXP_V3</span>
+          <span>&copy; 2024 CYBERNETICS LAB</span>
         </footer>
       </main>
     </div>
