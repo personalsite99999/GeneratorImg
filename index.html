@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nanobanana | Johan Pro Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;700&display=swap');
+        
+        :root {
+            --cyber-cyan: #00f3ff;
+            --cyber-magenta: #ff00ff;
+            --cyber-lime: #39ff14;
+            --cyber-bg: #030305;
+        }
+
+        body {
+            font-family: 'Space Grotesk', 'Inter', sans-serif;
+            background-color: var(--cyber-bg);
+            color: #fafafa;
+            overflow: hidden;
+        }
+
+        .bg-brick-pattern {
+            background-image: 
+                linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)),
+                url('https://www.transparenttextures.com/patterns/dark-brick-wall.png');
+            background-size: auto;
+        }
+
+        .cyber-grid {
+            background-image: 
+                linear-gradient(to right, rgba(0, 243, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0, 243, 255, 0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .glass {
+            background: rgba(5, 5, 10, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .neon-text-cyan-magenta {
+            text-shadow: 0 0 10px var(--cyber-cyan), 0 0 20px var(--cyber-magenta);
+        }
+
+        .btn-johan {
+            background: linear-gradient(45deg, var(--cyber-cyan), var(--cyber-magenta));
+            color: white;
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.4);
+            font-weight: 900;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            position: relative;
+            overflow: hidden;
+            border: none;
+        }
+
+        .btn-johan:hover:not(:disabled) {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 0 40px var(--cyber-magenta);
+            filter: brightness(1.1);
+        }
+
+        /* Techno Animations */
+        @keyframes scan-y {
+            0% { transform: translateY(0); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(400px); opacity: 0; }
+        }
+        .animate-scan-y {
+            animation: scan-y 4s linear infinite;
+        }
+
+        @keyframes spin-slow-cw {
+            from { transform: rotate(0deg); transform-origin: center; }
+            to { transform: rotate(360deg); transform-origin: center; }
+        }
+        .animate-spin-slow-cw {
+            animation: spin-slow-cw 12s linear infinite;
+        }
+
+        @keyframes spin-slow-ccw {
+            from { transform: rotate(360deg); transform-origin: center; }
+            to { transform: rotate(0deg); transform-origin: center; }
+        }
+        .animate-spin-slow-ccw {
+            animation: spin-slow-ccw 8s linear infinite;
+        }
+
+        @keyframes glitch-anim {
+            0% { transform: translate(0); }
+            2% { transform: translate(-2px, 1px); }
+            4% { transform: translate(2px, -1px); }
+            6% { transform: translate(0); }
+            100% { transform: translate(0); }
+        }
+        .techno-glitch {
+            animation: glitch-anim 3s infinite;
+        }
+
+        @keyframes neon-pulse {
+            0%, 100% { filter: drop-shadow(0 0 5px var(--cyber-lime)); }
+            50% { filter: drop-shadow(0 0 15px var(--cyber-lime)); }
+        }
+        .digital-pulse {
+            animation: neon-pulse 2s infinite;
+        }
+
+        .flicker {
+            animation: flicker-anim 3s infinite;
+        }
+        @keyframes flicker-anim {
+            0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; }
+            20%, 24%, 55% { opacity: 0.5; }
+        }
+
+        .flicker-slow {
+            animation: flicker-slow-anim 5s infinite;
+        }
+        @keyframes flicker-slow-anim {
+            0%, 10%, 15%, 80%, 100% { opacity: 1; }
+            12% { opacity: 0.2; }
+            82% { opacity: 0.4; }
+        }
+
+        .animate-pulse-slow {
+            animation: pulse-slow 4s infinite;
+        }
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 0.1; transform: scale(1); }
+            50% { opacity: 0.3; transform: scale(1.1); }
+        }
+
+        ::-webkit-scrollbar {
+            width: 3px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(to bottom, var(--cyber-lime), var(--cyber-magenta));
+            border-radius: 10px;
+        }
+
+        /* Color Utilities */
+        .text-cyan-400 { color: var(--cyber-cyan); }
+        .text-magenta-400 { color: var(--cyber-magenta); }
+        .text-lime-400 { color: var(--cyber-lime); }
+        .bg-magenta-500 { background-color: var(--cyber-magenta); }
+        .bg-lime-500 { background-color: var(--cyber-lime); }
+        .border-magenta-400 { border-color: var(--cyber-magenta); }
+        .border-magenta-500 { border-color: var(--cyber-magenta); }
+        .border-lime-400 { border-color: var(--cyber-lime); }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "vite": "https://esm.sh/vite@^7.3.1"
+  }
+}
+</script>
+</head>
+<body class="cyber-grid">
+    <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
+</body>
+</html>
