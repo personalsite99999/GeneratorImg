@@ -199,7 +199,10 @@ const App: React.FC = () => {
         }
       });
 
-      const imagePart = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
+      // FIXED: Added optional chaining to avoid TS2532
+      const candidate = response.candidates?.[0];
+      const imagePart = candidate?.content?.parts?.find(p => p.inlineData);
+
       if (imagePart?.inlineData?.data) {
         const newUrl = `data:image/png;base64,${imagePart.inlineData.data}`;
         setResultImage(newUrl);
