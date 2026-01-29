@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GoogleGenAI } from "@google/genai";
@@ -13,10 +14,14 @@ import {
   Download, 
   Image as ImageIcon, 
   AlertTriangle, 
-  Wand2 
+  Wand2,
+  Key,
+  ExternalLink,
+  Info,
+  CreditCard
 } from 'lucide-react';
 
-// Declaration to satisfy TS
+// Global declarations for AI Studio environment
 declare const process: {
   env: {
     API_KEY: string;
@@ -24,20 +29,27 @@ declare const process: {
   };
 };
 
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+}
+
 const AspectRatios = [
   { id: '1:1', label: '1:1', sub: 'Kotak', icon: Square },
-  { id: '4:5', label: '4:5', sub: 'Portrait', icon: RectangleVertical },
+  { id: '3:4', label: '3:4', sub: 'Portrait', icon: RectangleVertical },
   { id: '16:9', label: '16:9', sub: 'Lebar', icon: RectangleHorizontal },
   { id: '9:16', label: '9:16', sub: 'Story', icon: Smartphone },
 ];
 
 const LoadingMessages = [
-  "Lagi nge-scan vibes JOHAN mode...",
-  "Ekstrak pola neon magenta...",
-  "Lagi ngeracik prompt sama Gemini...",
-  "Nanobanana lagi ngerender pixel...",
-  "Poles dikit lagi biar gokil...",
-  "Karya lu hampir mateng bos..."
+  "Lagi nembus server Google...",
+  "Ngerakit pixel Nanobanana...",
+  "Gemini lagi gambar buat lu...",
+  "Dikit lagi jadi, sabar bos...",
+  "Poles cahaya dikit lagi...",
+  "Karya JOHAN hampir siap..."
 ];
 
 const JohanLogo: React.FC<{ className?: string }> = ({ className }) => (
@@ -57,33 +69,25 @@ const JohanLogo: React.FC<{ className?: string }> = ({ className }) => (
         <feComposite in="SourceGraphic" in2="blur" operator="over" />
       </filter>
     </defs>
-    
     <circle cx="200" cy="200" r="185" fill="black" fillOpacity="0.4" />
-
     <g className="animate-spin-slow-cw">
       <circle cx="200" cy="200" r="180" fill="none" stroke="url(#ringGrad)" strokeWidth="4" strokeDasharray="60 30" filter="url(#neonGlow)" />
     </g>
     <g className="animate-spin-slow-ccw">
       <circle cx="200" cy="200" r="170" fill="none" stroke="#ff00ff" strokeWidth="2" strokeDasharray="10 20" opacity="0.6" />
     </g>
-    
     <g className="techno-glitch">
       <text x="50%" y="45%" textAnchor="middle" fill="url(#textGrad)" style={{ fontSize: '95px', fontFamily: 'Arial Black, sans-serif', filter: 'url(#neonGlow)', fontWeight: 900 }}>JOHAN</text>
     </g>
-    
     <g className="flicker-slow">
       <rect x="70" y="205" width="260" height="40" fill="black" fillOpacity="0.7" rx="10" />
       <text x="50%" y="235" textAnchor="middle" fill="#ffffff" style={{ fontSize: '30px', fontFamily: 'Brush Script MT, cursive', fontStyle: 'italic', textShadow: '0 0 10px rgba(255,255,255,0.8)' }}>Programmer Freelancer</text>
     </g>
-    
     <g className="digital-pulse">
       <rect x="75" y="265" width="250" height="45" rx="8" fill="#000000" stroke="#39ff14" strokeWidth="1" strokeOpacity="0.3" />
       <text x="50%" y="297" textAnchor="middle" fill="#39ff14" style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace', filter: 'drop-shadow(0 0 8px #39ff14)' }}>+62-813-41-300-100</text>
     </g>
-    
     <circle cx="200" cy="20" r="5" fill="#39ff14" className="animate-pulse" />
-    <path d="M190 380 L210 380" stroke="#ff00ff" strokeWidth="2" className="animate-bounce" />
-    <line x1="20" y1="0" x2="380" y2="0" stroke="rgba(0, 243, 255, 0.2)" strokeWidth="2" className="animate-scan-y" />
   </svg>
 );
 
@@ -105,6 +109,7 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<GeneratedItem[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showBillingHint, setShowBillingHint] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -123,7 +128,6 @@ const App: React.FC = () => {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const files = Array.from(e.target.files) as File[];
-    
     const newRefs = await Promise.all(files.map(async file => {
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve) => {
@@ -131,13 +135,8 @@ const App: React.FC = () => {
         reader.readAsDataURL(file);
       });
       const base64 = await base64Promise;
-      return {
-        file,
-        preview: URL.createObjectURL(file),
-        base64
-      };
+      return { file, preview: URL.createObjectURL(file), base64 };
     }));
-    
     setReferences(prev => [...prev, ...newRefs].slice(0, 5));
   };
 
@@ -148,23 +147,25 @@ const App: React.FC = () => {
   const generateImage = async (isEditing = false) => {
     const activePrompt = isEditing ? editPrompt : prompt;
     if (!activePrompt.trim() && references.length === 0) {
-      setError("Isi dulu dong khayalan lu atau kasih gambar referensi biar gokil.");
+      setError("Isi dulu deskripsi ide lu bos!");
       return;
     }
 
     setIsGenerating(true);
     setError(null);
+    setShowBillingHint(false);
 
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       let finalStyleContext = "";
 
       if (references.length > 0 && !isEditing) {
-        setLoadingMsg("Analisis vibes gaya lu...");
-        const parts = references.map(ref => ({
+        setLoadingMsg("Analisis gaya referensi...");
+        // FIX: Explicitly type parts as any[] to allow pushing mixed part types (inlineData and text)
+        const parts: any[] = references.map(ref => ({
           inlineData: { mimeType: ref.file.type, data: ref.base64 }
         }));
-        parts.push({ text: "Analisis gaya artistik, skema warna, dan mood dari gambar-gambar ini secara mendalam. Berikan prompt teknis yang keren untuk generator gambar AI." } as any);
+        parts.push({ text: "Analisis gaya artistik dari gambar-gambar ini. Berikan deskripsi gaya teknis singkat." });
 
         const analysisResponse = await ai.models.generateContent({
           model: 'gemini-3-flash-preview',
@@ -173,7 +174,7 @@ const App: React.FC = () => {
         finalStyleContext = analysisResponse.text || "";
       }
 
-      setLoadingMsg(isEditing ? "Modifikasi pixel..." : "Ngerender karya JOHAN...");
+      setLoadingMsg(isEditing ? "Modifikasi pixel..." : "Ngerender gambar lu...");
       
       const parts: any[] = [];
       if (isEditing && resultImage) {
@@ -186,22 +187,20 @@ const App: React.FC = () => {
       }
 
       const compositePrompt = isEditing 
-        ? `Modify this visual with these changes: ${activePrompt}.`
-        : `${activePrompt}. Technical Aesthetic Style: ${finalStyleContext}. Maintain high quality cyber-neon aesthetics.`;
+        ? `Edit this: ${activePrompt}`
+        : `${activePrompt}. Style: ${finalStyleContext}. High quality render.`;
 
       parts.push({ text: compositePrompt });
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
+        model: 'gemini-2.5-flash-image', 
         contents: { parts },
         config: {
           imageConfig: { aspectRatio: aspectRatio as any }
         }
       });
 
-      // FIXED: Added optional chaining to avoid TS2532
-      const candidate = response.candidates?.[0];
-      const imagePart = candidate?.content?.parts?.find(p => p.inlineData);
+      const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
 
       if (imagePart?.inlineData?.data) {
         const newUrl = `data:image/png;base64,${imagePart.inlineData.data}`;
@@ -214,261 +213,169 @@ const App: React.FC = () => {
           aspectRatio: aspectRatio
         };
         setHistory(prev => [historyItem, ...prev].slice(0, 10));
-        
-        if (isEditing) {
-          setIsEditMode(false);
-          setEditPrompt('');
-        }
+        if (isEditing) setIsEditMode(false);
       } else {
-        throw new Error("Gagal dapet data pixel dari core!");
+        throw new Error("Respon kosong. Kuota lu kemungkinan masih 0.");
       }
 
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Waduh, koneksi ke lab JOHAN keganggu. Coba lagi ya!");
+      let msg = err.message || "Gagal render.";
+      
+      if (msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
+        msg = "Kuota Habis (Limit 0)! Di dashboard lu tulisannya 'Set up billing', itu penyebabnya bos.";
+        setShowBillingHint(true);
+      }
+      
+      setError(msg);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const downloadImage = () => {
-    if (!resultImage) return;
-    const link = document.createElement('a');
-    link.href = resultImage;
-    link.download = `johan-design-${Date.now()}.png`;
-    link.click();
+  const handleUpdateKey = async () => {
+    try {
+      // FIX: Cast window to any to access aistudio and avoid modifier conflict errors
+      await (window as any).aistudio.openSelectKey();
+      setError(null);
+      setShowBillingHint(false);
+    } catch (e) {
+      alert("Gunakan browser yang mendukung AI Studio.");
+    }
   };
 
   return (
-    <div className="flex h-screen w-full text-[#e4e4e7] overflow-hidden font-inter">
-      <aside className="w-[380px] border-r border-white/10 bg-[#050508]/95 backdrop-blur-2xl flex flex-col shrink-0 z-20 relative">
-        <div className="p-10 border-b border-white/5 relative bg-brick-pattern">
-          <div className="flex flex-col items-center gap-6">
-            <div className="w-52 h-52 relative group cursor-pointer">
-              <JohanLogo className="w-full h-full drop-shadow-[0_0_25px_rgba(0,243,255,0.4)] transition-transform duration-500 group-hover:scale-105" />
-              <div className="absolute -inset-4 bg-cyan-500/5 rounded-full animate-pulse-slow pointer-events-none"></div>
-            </div>
+    <div className="flex h-screen w-full text-[#e4e4e7] overflow-hidden font-inter bg-[#020205]">
+      <aside className="w-[380px] border-r border-white/10 bg-[#050508]/95 backdrop-blur-2xl flex flex-col shrink-0 z-20">
+        <div className="p-8 border-b border-white/5 relative bg-brick-pattern">
+          <div className="flex flex-col items-center gap-4">
+            <JohanLogo className="w-40 h-40 drop-shadow-[0_0_20px_rgba(0,243,255,0.3)]" />
             <div className="text-center">
-              <h1 className="font-black text-2xl tracking-[0.2em] text-white uppercase neon-text-cyan-magenta flicker">NANOBANANA</h1>
-              <p className="text-[10px] text-lime-400 font-bold tracking-[0.4em] mt-2 uppercase opacity-80">JOHAN Pro Studio</p>
+              <h1 className="font-black text-xl tracking-[0.2em] text-white uppercase neon-text-cyan-magenta">NANOBANANA</h1>
+              <p className="text-[9px] text-lime-400 font-bold tracking-[0.3em] mt-1 uppercase">JOHAN FREE STUDIO</p>
             </div>
           </div>
-          <div className="absolute -bottom-[1px] left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-lime-500 to-transparent"></div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-10 scrollbar-hide">
-          <section className="space-y-5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-400">Style Moodboard</h3>
-              <span className="text-[10px] text-zinc-600 bg-white/5 px-2 py-0.5 rounded">[{references.length}/5]</span>
-            </div>
-            <div className="grid grid-cols-4 gap-3">
+        <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
+          <section className="space-y-4">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Gaya & Mood</h3>
+            <div className="grid grid-cols-4 gap-2">
               {references.map((ref, idx) => (
-                <div key={idx} className="relative aspect-square rounded-lg border border-white/10 overflow-hidden group hover:border-magenta-500 transition-all">
-                  <img src={ref.preview} alt="Ref" className="w-full h-full object-cover" />
-                  <button onClick={() => removeReference(idx)} className="absolute inset-0 bg-magenta-500/80 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                    <X className="w-5 h-5 text-white" />
+                <div key={idx} className="relative aspect-square rounded-lg border border-white/10 overflow-hidden">
+                  <img src={ref.preview} className="w-full h-full object-cover" />
+                  <button onClick={() => removeReference(idx)} className="absolute inset-0 bg-red-500/80 opacity-0 hover:opacity-100 flex items-center justify-center transition-all">
+                    <X className="w-4 h-4 text-white" />
                   </button>
                 </div>
               ))}
               {references.length < 5 && (
-                <button onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-lg border-2 border-dashed border-white/10 hover:border-lime-500/50 hover:bg-lime-500/5 flex items-center justify-center transition-all group">
-                  <Plus className="w-6 h-6 text-zinc-600 group-hover:text-lime-400" />
+                <button onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-lg border border-dashed border-white/20 hover:border-lime-400/50 flex items-center justify-center">
+                  <Plus className="w-5 h-5 text-zinc-500" />
                 </button>
               )}
             </div>
             <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={handleFileChange} />
           </section>
 
-          <section className="space-y-5">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-400">Format Kanvas</h3>
-            <div className="grid grid-cols-2 gap-3">
+          <section className="space-y-4">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Ukuran</h3>
+            <div className="grid grid-cols-2 gap-2">
               {AspectRatios.map(Ratio => (
                 <button
                   key={Ratio.id}
                   onClick={() => setAspectRatio(Ratio.id)}
-                  className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 ${
-                    aspectRatio === Ratio.id 
-                      ? 'border-lime-400 bg-lime-400/10 text-lime-400 shadow-[0_0_15px_rgba(57,255,20,0.15)] scale-[1.02]' 
-                      : 'border-white/5 bg-white/5 text-zinc-500 hover:border-white/20'
+                  className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                    aspectRatio === Ratio.id ? 'border-lime-400 bg-lime-400/10 text-lime-400' : 'border-white/5 bg-white/5 text-zinc-500 hover:border-white/20'
                   }`}
                 >
-                  <Ratio.icon className="w-5 h-5" />
-                  <div className="flex flex-col items-start">
-                    <span className="text-xs font-black tracking-widest">{Ratio.label}</span>
-                    <span className="text-[9px] opacity-40 uppercase tracking-tighter font-bold">{Ratio.sub}</span>
-                  </div>
+                  <Ratio.icon className="w-4 h-4" />
+                  <span className="text-[10px] font-bold">{Ratio.label}</span>
                 </button>
               ))}
             </div>
           </section>
 
-          <section className="space-y-5">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-400">Instruksi Visual</h3>
-            <div className="relative">
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Deskripsikan ide gokil lu di sini..."
-                className="w-full h-40 bg-black/40 border border-white/10 rounded-xl p-5 text-sm focus:outline-none focus:border-magenta-500/50 transition-all resize-none placeholder:text-zinc-800 font-medium"
-              />
-            </div>
+          <section className="space-y-4">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Prompt</h3>
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Ide gokil lu apa?"
+              className="w-full h-32 bg-black/40 border border-white/10 rounded-xl p-4 text-xs focus:outline-none focus:border-cyan-500/50 resize-none text-white"
+            />
           </section>
         </div>
 
-        <div className="p-8 bg-black/60 border-t border-white/5 backdrop-blur-3xl">
+        <div className="p-6 bg-black/60 border-t border-white/5">
           <button 
             onClick={() => generateImage(false)}
             disabled={isGenerating || !prompt.trim()}
-            className={`w-full py-5 rounded-2xl flex items-center justify-center gap-4 transition-all active:scale-95 ${
-              isGenerating || !prompt.trim()
-                ? 'bg-zinc-900 text-zinc-700 cursor-not-allowed opacity-50' 
-                : 'btn-johan'
+            className={`w-full py-4 rounded-xl flex items-center justify-center gap-3 font-black text-xs tracking-widest transition-all ${
+              isGenerating || !prompt.trim() ? 'bg-zinc-900 text-zinc-700' : 'btn-johan'
             }`}
           >
-            {isGenerating ? (
-              <span className="flex items-center gap-4">
-                <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
-                RENDERING...
-              </span>
-            ) : (
-              <>
-                <Zap className="w-5 h-5" />
-                GASKEUN !
-              </>
-            )}
+            {isGenerating ? "RENDERING..." : "GASKEUN !"}
           </button>
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col relative overflow-hidden bg-[#020205]">
-        <header className="h-20 px-10 flex justify-between items-center border-b border-white/5 bg-black/30 backdrop-blur-xl z-10">
-          <div className="flex items-center gap-8">
-             <div className="flex items-center gap-3 px-4 py-1.5 rounded-full border border-lime-500/30 bg-lime-500/5 text-[11px] font-black text-lime-400 tracking-widest">
-                <span className="w-2 h-2 rounded-full bg-lime-400 shadow-[0_0_10px_#39ff14] animate-pulse"></span>
-                SYSTEM ONLINE
-             </div>
-             <div className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.3em]">
-               VIRTUAL_LAB // <span className="text-zinc-400">JOHAN_PRO_GEN</span>
+      <main className="flex-1 flex flex-col relative overflow-hidden">
+        <header className="h-16 px-8 flex justify-between items-center border-b border-white/5 bg-black/30 backdrop-blur-xl z-10">
+          <div className="flex items-center gap-2">
+             <div className="px-3 py-1 rounded-full border border-lime-500/20 bg-lime-500/5 text-[9px] font-black text-lime-400 uppercase">
+                {isGenerating ? "PROCESSING" : "STANDBY"}
              </div>
           </div>
-          
-          <div className="flex items-center gap-4">
-            {resultImage && !isGenerating && (
-              <>
-                <button 
-                  onClick={() => setIsEditMode(!isEditMode)}
-                  className={`flex items-center gap-2 px-6 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${isEditMode ? 'bg-magenta-500 text-white' : 'bg-white/5 text-white hover:bg-white/10'}`}
-                >
-                  <Edit3 className="w-3.5 h-3.5" /> {isEditMode ? 'STOP' : 'POLES'}
-                </button>
-                <button onClick={downloadImage} className="flex items-center gap-2 px-6 py-2 rounded-xl bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-lime-400 transition-all active:scale-95">
-                  <Download className="w-3.5 h-3.5" /> SEDOT
-                </button>
-              </>
-            )}
-          </div>
+          <button onClick={handleUpdateKey} className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-[9px] font-black uppercase transition-all">
+             <Key className="w-3 h-3 text-cyan-400" /> API CONFIG
+          </button>
         </header>
 
-        <div className="flex-1 relative flex items-center justify-center p-12 overflow-auto">
+        <div className="flex-1 relative flex items-center justify-center p-8 overflow-auto cyber-grid">
           {isGenerating ? (
-            <div className="flex flex-col items-center gap-12 z-10 animate-in fade-in zoom-in">
-               <div className="relative w-48 h-48">
-                  <div className="absolute inset-0 rounded-full border-2 border-magenta-500/20 animate-[ping_2s_infinite]"></div>
-                  <div className="absolute inset-4 rounded-full border-4 border-cyan-400 animate-[spin_1.5s_linear_infinite] border-t-transparent shadow-[0_0_40px_rgba(0,243,255,0.4)]"></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <JohanLogo className="w-28 h-28" />
-                  </div>
+            <div className="flex flex-col items-center gap-8 z-10">
+               <div className="relative w-32 h-32">
+                  <div className="absolute inset-0 rounded-full border-2 border-cyan-400 animate-spin border-t-transparent"></div>
+                  <Zap className="absolute inset-0 m-auto w-10 h-10 text-cyan-400 animate-pulse" />
                </div>
-               <div className="text-center space-y-4">
-                 <h2 className="text-3xl font-black text-white uppercase tracking-[0.5em] flicker">{loadingMsg}</h2>
-                 <p className="text-[10px] text-lime-400/60 font-black uppercase tracking-[0.5em] animate-pulse">Computing High Fidelity Assets...</p>
-               </div>
+               <h2 className="text-xl font-black text-white uppercase tracking-[0.3em] flicker">{loadingMsg}</h2>
             </div>
           ) : resultImage ? (
-            <div className="relative group animate-in zoom-in-95 duration-500 ease-out">
-               <img 
-                src={resultImage} 
-                alt="Hasil Gen" 
-                className={`rounded-2xl shadow-[0_40px_80px_rgba(0,0,0,0.8)] border border-white/5 object-contain max-h-[75vh] ${
-                  aspectRatio === '1:1' ? 'aspect-square' :
-                  aspectRatio === '4:5' ? 'aspect-[4/5]' :
-                  aspectRatio === '16:9' ? 'aspect-[16/9]' :
-                  'aspect-[9/16]'
-                }`}
-              />
-              
-              {isEditMode && (
-                <div className="absolute inset-0 flex items-center justify-center z-30 p-8">
-                  <div className="w-[440px] glass border border-magenta-400/40 p-10 rounded-3xl shadow-2xl pointer-events-auto animate-in slide-in-from-bottom-10 duration-500">
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="p-3 bg-magenta-500 rounded-xl shadow-[0_0_15px_rgba(255,0,255,0.3)]">
-                        <Wand2 className="w-5 h-5 text-white" />
-                      </div>
-                      <h4 className="text-xs font-black text-white uppercase tracking-[0.2em]">Poles Hasilnya</h4>
-                    </div>
-                    <textarea
-                      autoFocus
-                      value={editPrompt}
-                      onChange={(e) => setEditPrompt(e.target.value)}
-                      placeholder="Contoh: 'Ubah suasana jadi lebih gelap', 'Tambahin efek api'..."
-                      className="w-full h-32 bg-black/60 border border-white/10 rounded-2xl p-5 text-sm mb-6 focus:outline-none focus:border-magenta-500/50 resize-none text-white"
-                    />
-                    <div className="flex gap-4">
-                      <button onClick={() => generateImage(true)} className="flex-1 py-4 bg-magenta-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all shadow-lg">
-                        APPLY CHANGES
-                      </button>
-                      <button onClick={() => setIsEditMode(false)} className="px-6 py-4 bg-white/5 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
-                        BATAL
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+            <div className="relative group animate-in zoom-in duration-500">
+               <img src={resultImage} className="rounded-2xl shadow-2xl border border-white/10 max-h-[75vh] object-contain" />
+               <button onClick={() => {const a=document.createElement('a');a.href=resultImage;a.download='johan.png';a.click();}} className="absolute bottom-4 right-4 p-4 bg-white text-black rounded-full shadow-xl hover:scale-110 transition-all">
+                  <Download className="w-5 h-5" />
+               </button>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-12 text-center max-w-lg animate-in fade-in slide-in-from-bottom-20 duration-1000">
-              <div className="relative">
-                <div className="w-40 h-40 rounded-[3rem] border border-white/5 bg-white/5 flex items-center justify-center rotate-12 relative z-10 shadow-2xl overflow-hidden">
-                   <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 to-magenta-500/20"></div>
-                   <ImageIcon className="w-16 h-16 text-zinc-700 relative z-10" />
-                </div>
-                <div className="absolute -top-4 -right-4 w-40 h-40 rounded-[3rem] border border-white/5 bg-[#09090b] -rotate-12 -z-10 opacity-40"></div>
-              </div>
-              <div className="space-y-6">
-                <h2 className="text-4xl font-black text-white uppercase tracking-[0.4em] neon-text-cyan-magenta flicker">READY TO GEN</h2>
-                <p className="text-[12px] text-zinc-500 font-bold uppercase tracking-[0.25em] leading-relaxed px-10">
-                  Panel kontrol <span className="text-lime-400">JOHAN STUDIO</span> aktif. 
-                  Input ide lu dan tekan tombol gaskeun!
-                </p>
-              </div>
+            <div className="flex flex-col items-center gap-6 text-center max-w-md">
+              <ImageIcon className="w-16 h-16 text-zinc-800" />
+              <h2 className="text-2xl font-black text-white uppercase tracking-[0.3em]">JOHAN LAB</h2>
+              
               {error && (
-                <div className="mt-8 flex items-center gap-4 p-5 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-[11px] font-black uppercase tracking-widest shadow-xl">
-                  <AlertTriangle className="w-5 h-5" />
-                  <span>SYSTEM ERROR: {error}</span>
+                <div className="w-full p-6 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-left space-y-4">
+                  <div className="flex items-center gap-3 font-black text-[11px] uppercase">
+                    <AlertTriangle className="w-5 h-5" /> QUOTA ERROR
+                  </div>
+                  <p className="text-[10px] leading-relaxed opacity-80">{error}</p>
+                  
+                  {showBillingHint && (
+                    <div className="bg-black/40 p-4 rounded-xl space-y-3 border border-red-500/10">
+                      <div className="flex items-start gap-2 text-[9px] font-bold text-white">
+                        <CreditCard className="w-4 h-4 shrink-0 text-cyan-400" />
+                        <span>Sesuai gambar dashboard lu, statusnya "Set up billing". Lu harus klik tombol itu di Google AI Studio dulu bos biar kuota gambarnya kebuka (meskipun lu tetep di Free Tier).</span>
+                      </div>
+                      <a href="https://aistudio.google.com/app/apikey" target="_blank" className="block w-full py-2 bg-white text-black rounded-lg text-center text-[9px] font-black uppercase">
+                        BUKA AI STUDIO SEKARANG
+                      </a>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
         </div>
-
-        {history.length > 0 && (
-          <div className="h-40 px-10 border-t border-white/5 bg-black/60 backdrop-blur-3xl flex items-center gap-6 overflow-x-auto scrollbar-hide z-10">
-            <div className="flex flex-col gap-2 shrink-0 border-r border-white/10 pr-8">
-               <span className="text-[10px] font-black text-lime-500 uppercase tracking-[0.4em]">STAGING</span>
-               <span className="text-[9px] font-bold text-zinc-700 uppercase tracking-[0.4em]">HISTORY_LOG</span>
-            </div>
-            {history.map((item) => (
-              <button 
-                key={item.id} 
-                onClick={() => setResultImage(item.url)}
-                className={`h-28 aspect-square rounded-xl border-2 transition-all shrink-0 hover:scale-105 ${resultImage === item.url ? 'border-lime-400 shadow-[0_0_20px_rgba(57,255,20,0.3)]' : 'border-white/5 opacity-40 hover:opacity-100'}`}
-              >
-                <img src={item.url} alt="History" className="w-full h-full object-cover rounded-lg" />
-              </button>
-            ))}
-          </div>
-        )}
       </main>
     </div>
   );
