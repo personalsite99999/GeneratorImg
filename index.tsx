@@ -2,8 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Initialize Lucide icons helper
+// Global declarations to satisfy TypeScript during build
 declare const lucide: any;
+declare const process: {
+  env: {
+    API_KEY: string;
+    [key: string]: string;
+  };
+};
 
 const AspectRatios = [
   { id: '1:1', label: '1:1', sub: 'Kotak', icon: 'square' },
@@ -21,7 +27,6 @@ const LoadingMessages = [
   "Karya lu hampir mateng bos..."
 ];
 
-// SVG Logo Component with Techno Graphic Animations
 const JohanLogo: React.FC<{ className?: string }> = ({ className }) => (
   <svg viewBox="0 0 400 400" className={`${className} select-none`}>
     <defs>
@@ -38,25 +43,10 @@ const JohanLogo: React.FC<{ className?: string }> = ({ className }) => (
         <feGaussianBlur stdDeviation="3" result="blur" />
         <feComposite in="SourceGraphic" in2="blur" operator="over" />
       </filter>
-      <filter id="glitchFilter">
-        <feOffset dx="2" dy="0" in="SourceGraphic" result="offset1" />
-        <feFlood floodColor="#ff00ff" result="color1" />
-        <feComposite in="color1" in2="offset1" operator="in" result="comp1" />
-        <feOffset dx="-2" dy="0" in="SourceGraphic" result="offset2" />
-        <feFlood floodColor="#00f3ff" result="color2" />
-        <feComposite in="color2" in2="offset2" operator="in" result="comp2" />
-        <feMerge>
-          <feMergeNode in="comp1" />
-          <feMergeNode in="comp2" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
     </defs>
     
-    {/* Background Circle for contrast */}
     <circle cx="200" cy="200" r="185" fill="black" fillOpacity="0.4" />
 
-    {/* Rotating Outer Rings */}
     <g className="animate-spin-slow-cw">
       <circle cx="200" cy="200" r="180" fill="none" stroke="url(#ringGrad)" strokeWidth="4" strokeDasharray="60 30" filter="url(#neonGlow)" />
     </g>
@@ -64,53 +54,22 @@ const JohanLogo: React.FC<{ className?: string }> = ({ className }) => (
       <circle cx="200" cy="200" r="170" fill="none" stroke="#ff00ff" strokeWidth="2" strokeDasharray="10 20" opacity="0.6" />
     </g>
     
-    {/* Main Name: JOHAN with Glitch Effect */}
     <g className="techno-glitch">
-      <text 
-        x="50%" 
-        y="45%" 
-        textAnchor="middle" 
-        fill="url(#textGrad)" 
-        className="font-black"
-        style={{ fontSize: '95px', fontFamily: 'Arial Black, sans-serif', filter: 'url(#neonGlow)' }}
-      >
-        JOHAN
-      </text>
+      <text x="50%" y="45%" textAnchor="middle" fill="url(#textGrad)" style={{ fontSize: '95px', fontFamily: 'Arial Black, sans-serif', filter: 'url(#neonGlow)', fontWeight: 900 }}>JOHAN</text>
     </g>
     
-    {/* Script: Programmer Freelancer - Enhanced visibility */}
     <g className="flicker-slow">
       <rect x="70" y="205" width="260" height="40" fill="black" fillOpacity="0.7" rx="10" />
-      <text 
-        x="50%" 
-        y="235" 
-        textAnchor="middle" 
-        fill="#ffffff" 
-        style={{ fontSize: '30px', fontFamily: 'Brush Script MT, cursive', fontStyle: 'italic', textShadow: '0 0 10px rgba(255,255,255,0.8)' }}
-      >
-        Programmer Freelancer
-      </text>
+      <text x="50%" y="235" textAnchor="middle" fill="#ffffff" style={{ fontSize: '30px', fontFamily: 'Brush Script MT, cursive', fontStyle: 'italic', textShadow: '0 0 10px rgba(255,255,255,0.8)' }}>Programmer Freelancer</text>
     </g>
     
-    {/* Digital Display for Numbers */}
     <g className="digital-pulse">
       <rect x="75" y="265" width="250" height="45" rx="8" fill="#000000" stroke="#39ff14" strokeWidth="1" strokeOpacity="0.3" />
-      <text 
-        x="50%" 
-        y="297" 
-        textAnchor="middle" 
-        fill="#39ff14" 
-        style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace', filter: 'drop-shadow(0 0 8px #39ff14)' }}
-      >
-        +62-813-41-300-100
-      </text>
+      <text x="50%" y="297" textAnchor="middle" fill="#39ff14" style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'monospace', filter: 'drop-shadow(0 0 8px #39ff14)' }}>+62-813-41-300-100</text>
     </g>
     
-    {/* Interactive HUD Elements */}
     <circle cx="200" cy="20" r="5" fill="#39ff14" className="animate-pulse" />
     <path d="M190 380 L210 380" stroke="#ff00ff" strokeWidth="2" className="animate-bounce" />
-    
-    {/* Scanning Line */}
     <line x1="20" y1="0" x2="380" y2="0" stroke="rgba(0, 243, 255, 0.2)" strokeWidth="2" className="animate-scan-y" />
   </svg>
 );
@@ -159,24 +118,20 @@ const App: React.FC = () => {
     const files = Array.from(e.target.files) as File[];
     
     const newRefs = await Promise.all(files.map(async file => {
-      const base64 = await fileToBase64(file);
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve) => {
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.readAsDataURL(file);
+      });
+      const base64 = await base64Promise;
       return {
         file,
         preview: URL.createObjectURL(file),
-        base64: base64.split(',')[1]
+        base64
       };
     }));
     
     setReferences(prev => [...prev, ...newRefs].slice(0, 5));
-  };
-
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = error => reject(error);
-    });
   };
 
   const removeReference = (index: number) => {
@@ -276,9 +231,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen w-full text-[#e4e4e7] overflow-hidden font-inter">
-      {/* SIDEBAR: JOHAN CONTROL PANEL */}
       <aside className="w-[380px] border-r border-white/10 bg-[#050508]/95 backdrop-blur-2xl flex flex-col shrink-0 z-20 relative">
-        {/* RE-DESIGNED LOGO AREA */}
         <div className="p-10 border-b border-white/5 relative bg-brick-pattern">
           <div className="flex flex-col items-center gap-6">
             <div className="w-52 h-52 relative group cursor-pointer">
@@ -294,7 +247,6 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-8 space-y-10 scrollbar-hide">
-          {/* Moodboard / Style Ref */}
           <section className="space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-400">Style Moodboard</h3>
@@ -318,7 +270,6 @@ const App: React.FC = () => {
             <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={handleFileChange} />
           </section>
 
-          {/* Aspect Ratio */}
           <section className="space-y-5">
             <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-400">Format Kanvas</h3>
             <div className="grid grid-cols-2 gap-3">
@@ -342,7 +293,6 @@ const App: React.FC = () => {
             </div>
           </section>
 
-          {/* Prompt Area */}
           <section className="space-y-5">
             <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-400">Instruksi Visual</h3>
             <div className="relative">
@@ -356,7 +306,6 @@ const App: React.FC = () => {
           </section>
         </div>
 
-        {/* Generate Trigger */}
         <div className="p-8 bg-black/60 border-t border-white/5 backdrop-blur-3xl">
           <button 
             onClick={() => generateImage(false)}
@@ -382,7 +331,6 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      {/* VIEWPORT AREA */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-[#020205]">
         <header className="h-20 px-10 flex justify-between items-center border-b border-white/5 bg-black/30 backdrop-blur-xl z-10">
           <div className="flex items-center gap-8">
@@ -412,7 +360,6 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {/* Workspace Canvas */}
         <div className="flex-1 relative flex items-center justify-center p-12 overflow-auto">
           {isGenerating ? (
             <div className="flex flex-col items-center gap-12 z-10 animate-in fade-in zoom-in">
@@ -495,7 +442,6 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* History Gallery */}
         {history.length > 0 && (
           <div className="h-40 px-10 border-t border-white/5 bg-black/60 backdrop-blur-3xl flex items-center gap-6 overflow-x-auto scrollbar-hide z-10">
             <div className="flex flex-col gap-2 shrink-0 border-r border-white/10 pr-8">
