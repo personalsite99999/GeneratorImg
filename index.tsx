@@ -1,9 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
+import { 
+  Square, 
+  RectangleVertical, 
+  RectangleHorizontal, 
+  Smartphone, 
+  X, 
+  Plus, 
+  Zap, 
+  Edit3, 
+  Download, 
+  Image as ImageIcon, 
+  AlertTriangle, 
+  Wand2 
+} from 'lucide-react';
 
-// Global declarations to satisfy TypeScript during build
-declare const lucide: any;
+// Declaration to satisfy TS
 declare const process: {
   env: {
     API_KEY: string;
@@ -12,10 +25,10 @@ declare const process: {
 };
 
 const AspectRatios = [
-  { id: '1:1', label: '1:1', sub: 'Kotak', icon: 'square' },
-  { id: '4:5', label: '4:5', sub: 'Portrait', icon: 'rectangle-vertical' },
-  { id: '16:9', label: '16:9', sub: 'Lebar', icon: 'rectangle-horizontal' },
-  { id: '9:16', label: '9:16', sub: 'Story', icon: 'smartphone' },
+  { id: '1:1', label: '1:1', sub: 'Kotak', icon: Square },
+  { id: '4:5', label: '4:5', sub: 'Portrait', icon: RectangleVertical },
+  { id: '16:9', label: '16:9', sub: 'Lebar', icon: RectangleHorizontal },
+  { id: '9:16', label: '9:16', sub: 'Story', icon: Smartphone },
 ];
 
 const LoadingMessages = [
@@ -94,12 +107,6 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (typeof lucide !== 'undefined') {
-      lucide.createIcons();
-    }
-  }, [references, resultImage, isGenerating, isEditMode, history]);
 
   useEffect(() => {
     let interval: any;
@@ -257,13 +264,13 @@ const App: React.FC = () => {
                 <div key={idx} className="relative aspect-square rounded-lg border border-white/10 overflow-hidden group hover:border-magenta-500 transition-all">
                   <img src={ref.preview} alt="Ref" className="w-full h-full object-cover" />
                   <button onClick={() => removeReference(idx)} className="absolute inset-0 bg-magenta-500/80 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                    <i data-lucide="x" className="w-5 h-5 text-white"></i>
+                    <X className="w-5 h-5 text-white" />
                   </button>
                 </div>
               ))}
               {references.length < 5 && (
                 <button onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-lg border-2 border-dashed border-white/10 hover:border-lime-500/50 hover:bg-lime-500/5 flex items-center justify-center transition-all group">
-                  <i data-lucide="plus" className="w-6 h-6 text-zinc-600 group-hover:text-lime-400"></i>
+                  <Plus className="w-6 h-6 text-zinc-600 group-hover:text-lime-400" />
                 </button>
               )}
             </div>
@@ -273,20 +280,20 @@ const App: React.FC = () => {
           <section className="space-y-5">
             <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-400">Format Kanvas</h3>
             <div className="grid grid-cols-2 gap-3">
-              {AspectRatios.map(ratio => (
+              {AspectRatios.map(Ratio => (
                 <button
-                  key={ratio.id}
-                  onClick={() => setAspectRatio(ratio.id)}
+                  key={Ratio.id}
+                  onClick={() => setAspectRatio(Ratio.id)}
                   className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-300 ${
-                    aspectRatio === ratio.id 
+                    aspectRatio === Ratio.id 
                       ? 'border-lime-400 bg-lime-400/10 text-lime-400 shadow-[0_0_15px_rgba(57,255,20,0.15)] scale-[1.02]' 
                       : 'border-white/5 bg-white/5 text-zinc-500 hover:border-white/20'
                   }`}
                 >
-                  <i data-lucide={ratio.icon} className="w-5 h-5"></i>
+                  <Ratio.icon className="w-5 h-5" />
                   <div className="flex flex-col items-start">
-                    <span className="text-xs font-black tracking-widest">{ratio.label}</span>
-                    <span className="text-[9px] opacity-40 uppercase tracking-tighter font-bold">{ratio.sub}</span>
+                    <span className="text-xs font-black tracking-widest">{Ratio.label}</span>
+                    <span className="text-[9px] opacity-40 uppercase tracking-tighter font-bold">{Ratio.sub}</span>
                   </div>
                 </button>
               ))}
@@ -323,7 +330,7 @@ const App: React.FC = () => {
               </span>
             ) : (
               <>
-                <i data-lucide="zap" className="w-5 h-5"></i>
+                <Zap className="w-5 h-5" />
                 GASKEUN !
               </>
             )}
@@ -350,10 +357,10 @@ const App: React.FC = () => {
                   onClick={() => setIsEditMode(!isEditMode)}
                   className={`flex items-center gap-2 px-6 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${isEditMode ? 'bg-magenta-500 text-white' : 'bg-white/5 text-white hover:bg-white/10'}`}
                 >
-                  <i data-lucide="edit-3" className="w-3.5 h-3.5"></i> {isEditMode ? 'STOP' : 'POLES'}
+                  <Edit3 className="w-3.5 h-3.5" /> {isEditMode ? 'STOP' : 'POLES'}
                 </button>
                 <button onClick={downloadImage} className="flex items-center gap-2 px-6 py-2 rounded-xl bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-lime-400 transition-all active:scale-95">
-                  <i data-lucide="download" className="w-3.5 h-3.5"></i> SEDOT
+                  <Download className="w-3.5 h-3.5" /> SEDOT
                 </button>
               </>
             )}
@@ -393,7 +400,7 @@ const App: React.FC = () => {
                   <div className="w-[440px] glass border border-magenta-400/40 p-10 rounded-3xl shadow-2xl pointer-events-auto animate-in slide-in-from-bottom-10 duration-500">
                     <div className="flex items-center gap-4 mb-6">
                       <div className="p-3 bg-magenta-500 rounded-xl shadow-[0_0_15px_rgba(255,0,255,0.3)]">
-                        <i data-lucide="wand-2" className="w-5 h-5 text-white"></i>
+                        <Wand2 className="w-5 h-5 text-white" />
                       </div>
                       <h4 className="text-xs font-black text-white uppercase tracking-[0.2em]">Poles Hasilnya</h4>
                     </div>
@@ -421,7 +428,7 @@ const App: React.FC = () => {
               <div className="relative">
                 <div className="w-40 h-40 rounded-[3rem] border border-white/5 bg-white/5 flex items-center justify-center rotate-12 relative z-10 shadow-2xl overflow-hidden">
                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 to-magenta-500/20"></div>
-                   <i data-lucide="image" className="w-16 h-16 text-zinc-700 relative z-10"></i>
+                   <ImageIcon className="w-16 h-16 text-zinc-700 relative z-10" />
                 </div>
                 <div className="absolute -top-4 -right-4 w-40 h-40 rounded-[3rem] border border-white/5 bg-[#09090b] -rotate-12 -z-10 opacity-40"></div>
               </div>
@@ -434,7 +441,7 @@ const App: React.FC = () => {
               </div>
               {error && (
                 <div className="mt-8 flex items-center gap-4 p-5 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-[11px] font-black uppercase tracking-widest shadow-xl">
-                  <i data-lucide="alert-triangle" className="w-5 h-5"></i>
+                  <AlertTriangle className="w-5 h-5" />
                   <span>SYSTEM ERROR: {error}</span>
                 </div>
               )}
